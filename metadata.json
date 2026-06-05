@@ -1,0 +1,6 @@
+{
+  "name": "Viaboard",
+  "description": "Sovereign Android Keyboard",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
