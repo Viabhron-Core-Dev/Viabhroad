@@ -25,7 +25,7 @@ jobs:
       run: keytool -genkey -v -keystore ./debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "cn=Unknown, ou=Unknown, o=Unknown, c=Unknown"
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon --no-configuration-cache
+      run: gradle assembleDebug --no-daemon --no-configuration-cache
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
@@ -34,7 +34,7 @@ jobs:
         path: app/build/outputs/apk/debug/app-debug.apk
         
     - name: Build Release APK (Unsigned)
-      run: ./gradlew assembleRelease --no-daemon --no-configuration-cache
+      run: gradle assembleRelease --no-daemon --no-configuration-cache
 
     - name: Upload Release APK
       uses: actions/upload-artifact@v4
