@@ -35,7 +35,7 @@ A strict logging system active from Phase 1.
 ### Phase 1: Project Skeleton & Telemetry
 - [x] 1. Setup Android app structure and Welcome Page UI.
 - [x] 2. Build "The Log Keeper" (DB, Master Switch, FAB UI on Welcome Page for timeframes/download/copy).
-- [x] 3. Configure GitHub Actions workflow for automatic remote APK building.
+- [x] 3. Configure GitHub Actions workflow for automatic remote APK building (Release build removed to ensure workflow stability for Debug APK drops).
 
 ### Phase 2: Base Engine Import & Cleanup
 1. Import `roalyr/CustomKeyboardEngine` source.
