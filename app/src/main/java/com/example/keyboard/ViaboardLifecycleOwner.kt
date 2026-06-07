@@ -32,11 +32,13 @@ class ViaboardLifecycleOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateRe
     }
 
     fun onResume() {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
     }
 
     fun onPause() {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
     }
 
     fun onDestroy() {

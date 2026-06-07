@@ -20,6 +20,19 @@ class ViaboardService : InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // Trap all fatals and ensure they go to LogKeeper before the process dies
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                val _logKeeper = TheLogKeeper.getInstance(this.applicationContext)
+                _logKeeper.log("FATAL", "CRASH", throwable.stackTraceToString())
+            } catch (e: Exception) {
+                // Ignore if we can't log
+            }
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+
         lifecycleOwner = ViaboardLifecycleOwner()
         lifecycleOwner.onCreate()
         logKeeper = TheLogKeeper.getInstance(this)
@@ -62,6 +75,7 @@ class ViaboardService : InputMethodService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        composeView?.disposeComposition()
         lifecycleOwner.onDestroy()
         logKeeper.log("INFO", "ViaboardService", "Service Destroyed")
     }
