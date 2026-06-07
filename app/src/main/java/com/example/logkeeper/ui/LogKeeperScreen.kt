@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Environment
 import android.widget.Toast
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -71,8 +73,9 @@ fun LogKeeperScreen(onClose: () -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(8.dp)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 IntervalButton("1H", 1L, selectedInterval) { selectedInterval = it }
                 IntervalButton("6H", 6L, selectedInterval) { selectedInterval = it }

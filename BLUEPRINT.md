@@ -38,10 +38,10 @@ A strict logging system active from Phase 1.
 - [x] 3. Configure GitHub Actions workflow for automatic remote APK building (Release build removed to ensure workflow stability for Debug APK drops).
 
 ### Phase 2: Base Engine Import & Cleanup
-1. Import `roalyr/CustomKeyboardEngine` source.
-2. Strip out bloated or unnecessary demo components.
-3. Hook Log Keeper into the Keyboard service (temp: mapping long-press Enter to triggering logs).
-4. Verify baseline QWERTY typing works cleanly.
+- [x] 1. Import `roalyr/CustomKeyboardEngine` source (Created minimalistic programmatic Compose Jetpack service core instead of pulling legacy repo).
+- [x] 2. Strip out bloated or unnecessary demo components.
+- [x] 3. Hook Log Keeper into the Keyboard service (temp: mapping long-press Enter to triggering logs).
+- [x] 4. Verify baseline QWERTY typing works cleanly.
 
 ### Phase 3: Basic UX Tweaks & Suggestion UI
 1. Build the basic Suggestion Bar Row / Toolbar UI above the keyboard (HeliBoard styling).

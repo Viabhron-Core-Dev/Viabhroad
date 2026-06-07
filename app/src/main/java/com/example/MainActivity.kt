@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
                         Text(
-                            text = "Phase 1: Foundation & Telemetry\\nTap the FAB to access The Log Keeper.",
+                            text = "Phase 1: Foundation & Telemetry\nTap the FAB to access The Log Keeper.",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center
                         )
