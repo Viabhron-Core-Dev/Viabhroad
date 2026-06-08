@@ -46,6 +46,7 @@ A strict logging system active from Phase 1.
 - [x] 3. **Canvas Touch Math**: Implement the HeliBoard-inspired math for touch hitboxes, multi-touch handling, and high-performance Canvas rendering.
 - [x] 4. Connect the new parser to the `KeyboardView`, verifying fluid, baseline QWERTY typing.
 - [x] 5. Hook Log Keeper into the Keyboard service.
+- [x] 6. **Visual & Layout Baseline**: Sync colors, keyboard proportions, drop shadows, and add the persistent Number Row according to the HeliBoard reference UI.
 
 ### Phase 3: Basic UX Tweaks & Suggestion UI
 1. Build the basic Suggestion Bar Row / Toolbar UI above the keyboard (HeliBoard styling).

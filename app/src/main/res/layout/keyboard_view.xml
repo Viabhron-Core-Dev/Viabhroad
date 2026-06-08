@@ -26,7 +26,7 @@
     <com.example.keyboard.KeyboardView
         android:id="@+id/keyboard_view"
         android:layout_width="match_parent"
-        android:layout_height="260dp"
-        android:background="#D1D6DD" />
+        android:layout_height="320dp"
+        android:background="#E8EAED" />
 
 </LinearLayout>

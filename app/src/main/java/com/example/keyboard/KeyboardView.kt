@@ -25,14 +25,20 @@ class KeyboardView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
     
+    private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.parseColor("#C5CAD1")
+    }
+    
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.BLACK
         textAlign = Paint.Align.CENTER
-        textSize = 50f
+        textSize = 55f
     }
 
-    private val keyMargin = 6f
-    private val cornerRadius = 16f
+    private val keyMarginHorizontal = 8f
+    private val keyMarginVertical = 10f
+    private val cornerRadius = 14f
 
     fun setKeyboard(kbd: Keyboard) {
         this.keyboard = kbd
@@ -76,15 +82,19 @@ class KeyboardView @JvmOverloads constructor(
                 if (key.codes.isEmpty() && key.widthWeight > 0) continue // It's a spacer
 
                 val rect = RectF(
-                    key.x + keyMargin,
-                    key.y + keyMargin,
-                    key.x + key.width - keyMargin,
-                    key.y + key.height - keyMargin
+                    key.x + keyMarginHorizontal,
+                    key.y + keyMarginVertical,
+                    key.x + key.width - keyMarginHorizontal,
+                    key.y + key.height - keyMarginVertical
                 )
+                
+                // Draw Shadow
+                val shadowRect = RectF(rect.left, rect.top, rect.right, rect.bottom + 6f)
+                canvas.drawRoundRect(shadowRect, cornerRadius, cornerRadius, shadowPaint)
                 
                 // Draw Key Background
                 bgPaint.color = if (key == pressedKey) Color.LTGRAY 
-                                else if (key.isFunctional) Color.parseColor("#B0B5BA") 
+                                else if (key.isFunctional) Color.parseColor("#B4BACC") 
                                 else Color.WHITE
                 
                 canvas.drawRoundRect(rect, cornerRadius, cornerRadius, bgPaint)
