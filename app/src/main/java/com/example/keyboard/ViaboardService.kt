@@ -5,6 +5,8 @@ import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.LayoutInflater
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.example.logkeeper.TheLogKeeper
 import com.example.R
 
@@ -42,6 +44,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     override fun onCreateInputView(): View {
         val root = layoutInflater.inflate(R.layout.keyboard_view, null)
         mainView = root
+        
+        // Add padding to avoid drawing underneath the navigation bar
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            view.setPadding(0, 0, 0, insets.bottom)
+            windowInsets
+        }
         
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view)
         keyboardView.listener = this
