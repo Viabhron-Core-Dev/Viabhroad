@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Keyboard>
+    <Row>
+        <Key codes="q" label="Q" />
+        <Key codes="w" label="W" />
+        <Key codes="e" label="E" />
+        <Key codes="r" label="R" />
+        <Key codes="t" label="T" />
+        <Key codes="y" label="Y" />
+        <Key codes="u" label="U" />
+        <Key codes="i" label="I" />
+        <Key codes="o" label="O" />
+        <Key codes="p" label="P" />
+    </Row>
+    <Row>
+        <!-- A small visual offset for the middle row -->
+        <Key codes="" weight="0.5" isFunctional="true" />
+        <Key codes="a" label="A" />
+        <Key codes="s" label="S" />
+        <Key codes="d" label="D" />
+        <Key codes="f" label="F" />
+        <Key codes="g" label="G" />
+        <Key codes="h" label="H" />
+        <Key codes="j" label="J" />
+        <Key codes="k" label="K" />
+        <Key codes="l" label="L" />
+        <Key codes="" weight="0.5" isFunctional="true" />
+    </Row>
+    <Row>
+        <Key codes="SHIFT" label="⇧" weight="1.5" isFunctional="true" />
+        <Key codes="z" label="Z" />
+        <Key codes="x" label="X" />
+        <Key codes="c" label="C" />
+        <Key codes="v" label="V" />
+        <Key codes="b" label="B" />
+        <Key codes="n" label="N" />
+        <Key codes="m" label="M" />
+        <Key codes="DEL" label="⌫" weight="1.5" isFunctional="true" />
+    </Row>
+    <Row>
+        <Key codes="SYM" label="123" weight="1.5" isFunctional="true" />
+        <Key codes="," label="," weight="1.0" />
+        <Key codes="SPACE" label=" " weight="4.0" />
+        <Key codes="." label="." weight="1.0" />
+        <Key codes="ENTER" label="↵" weight="1.5" isFunctional="true" />
+    </Row>
+</Keyboard>

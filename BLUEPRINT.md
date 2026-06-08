@@ -17,9 +17,11 @@ A strict logging system active from Phase 1.
 - **Constraints**: Logs ONLY Error types/codes, failed components, timestamps, code-path stack traces, and crash states. **Never** records visual content, typed sentences, credentials, or PII. Inherently blocks passwords and personal vault data.
 
 ## 3. Base & Approach
-- **Base Repo**: Fork `roalyr/CustomKeyboardEngine` (Pure Kotlin, no NDK, Cloud AI Studio friendly).
-- **Layouts**: JSON-based keyboard layouts.
-- **Visual Reference**: HeliBoard (styling, toolbar) & Futo Keyboard (suggestion bar).
+- **Architecture**: The "Goldilocks" Approach. Traditional View-based `InputMethodService` (Jetpack Compose removed).
+- **UI Layers**: Two distinct layers:
+  - **Toolbar**: Standard XML layouts on top for ease of building the suggestion bar, settings, and UI components.
+  - **Key Grid**: Lightweight, custom-drawn Canvas underneath for extreme rendering performance where it matters most (the keys).
+- **Engine**: Proven mathematical logic, touch handling, and XML/JSON layout parsing adapted from established open-source apps (HeliBoard reference) to ensure it feels naturally responsive to type on.
 
 ## 4. Core Features
 - **Dictionaries & Autocorrect**: Pure Kotlin word list + personal learned SQLite dictionary. N-gram prediction.
@@ -37,11 +39,13 @@ A strict logging system active from Phase 1.
 - [x] 2. Build "The Log Keeper" (DB, Master Switch, FAB UI on Welcome Page for timeframes/download/copy).
 - [x] 3. Configure GitHub Actions workflow for automatic remote APK building (Release build removed to ensure workflow stability for Debug APK drops).
 
-### Phase 2: Base Engine Import & Cleanup
-- [x] 1. Import `roalyr/CustomKeyboardEngine` source (Created minimalistic programmatic Compose Jetpack service core instead of pulling legacy repo).
-- [x] 2. Strip out bloated or unnecessary demo components.
-- [x] 3. Hook Log Keeper into the Keyboard service (temp: mapping long-press Enter to triggering logs).
-- [x] 4. Verify baseline QWERTY typing works cleanly.
+### Phase 2: The Core Goldilocks Engine (Immediate Priority)
+*Building the foundational layout parser and canvas math before any other feature.*
+- [x] 1. Rip out Compose and set up the traditional `InputMethodService` (XML Toolbar + Canvas Grid layout).
+- [x] 2. **Custom Layout Parser**: Build the engine to parse specialized keyboard XML files (QWERTY, symbols) into dynamic grid coordinates.
+- [x] 3. **Canvas Touch Math**: Implement the HeliBoard-inspired math for touch hitboxes, multi-touch handling, and high-performance Canvas rendering.
+- [x] 4. Connect the new parser to the `KeyboardView`, verifying fluid, baseline QWERTY typing.
+- [x] 5. Hook Log Keeper into the Keyboard service.
 
 ### Phase 3: Basic UX Tweaks & Suggestion UI
 1. Build the basic Suggestion Bar Row / Toolbar UI above the keyboard (HeliBoard styling).

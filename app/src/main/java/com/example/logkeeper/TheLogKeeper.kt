@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 class TheLogKeeper private constructor(private val context: Context) {
 
-    private val logDao = LogDatabase.getDatabase(context).logDao()
+    val logDao = LogDatabase.getDatabase(context).logDao()
     private val scope = CoroutineScope(Dispatchers.IO)
     private val prefs = context.getSharedPreferences("log_keeper_prefs", Context.MODE_PRIVATE)
 

@@ -4,19 +4,13 @@ import android.inputmethodservice.InputMethodService
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.view.ViewGroup
-import android.widget.FrameLayout
-import androidx.compose.ui.platform.ComposeView
-import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import android.view.LayoutInflater
 import com.example.logkeeper.TheLogKeeper
+import com.example.R
 
-class ViaboardService : InputMethodService() {
-    private lateinit var lifecycleOwner: ViaboardLifecycleOwner
-    private var composeView: ComposeView? = null
+class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private lateinit var logKeeper: TheLogKeeper
+    private var mainView: View? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -26,74 +20,66 @@ class ViaboardService : InputMethodService() {
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
                 val _logKeeper = TheLogKeeper.getInstance(this.applicationContext)
-                _logKeeper.log("FATAL", "CRASH", throwable.stackTraceToString())
+                // Use runBlocking or direct block to ensure log is saved before death
+                kotlinx.coroutines.runBlocking {
+                    _logKeeper.logDao.insertLog(com.example.logkeeper.data.LogEntry(
+                        type = "FATAL",
+                        component = "CRASH",
+                        message = throwable.message ?: "Unknown crash",
+                        stackTrace = throwable.stackTraceToString()
+                    ))
+                }
             } catch (e: Exception) {
                 // Ignore if we can't log
             }
             defaultHandler?.uncaughtException(thread, throwable)
         }
 
-        lifecycleOwner = ViaboardLifecycleOwner()
-        lifecycleOwner.onCreate()
         logKeeper = TheLogKeeper.getInstance(this)
-        logKeeper.log("INFO", "ViaboardService", "Service Created")
+        logKeeper.log("INFO", "ViaboardService", "Service Created (View-based)")
     }
 
     override fun onCreateInputView(): View {
-        val frameLayout = FrameLayout(this)
-        frameLayout.layoutParams = ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+        val root = layoutInflater.inflate(R.layout.keyboard_view, null)
+        mainView = root
         
-        composeView = ComposeView(this).apply {
-            setContent {
-                ViaboardKeyboardScreen(
-                    onKeyPress = { key -> handleKeyPress(key) },
-                    onLongPressEnter = { triggerLogKeeper() }
-                )
-            }
-        }
+        val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view)
+        keyboardView.listener = this
         
-        frameLayout.setViewTreeLifecycleOwner(lifecycleOwner)
-        frameLayout.setViewTreeViewModelStoreOwner(lifecycleOwner)
-        frameLayout.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+        // Parse and set the XML layout
+        val parser = KeyboardParser(this)
+        val keyboard = parser.parse(R.xml.kbd_qwerty)
+        keyboardView.setKeyboard(keyboard)
         
-        frameLayout.addView(composeView)
-        return frameLayout
+        return root
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        lifecycleOwner.onResume()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
-        lifecycleOwner.onPause()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        composeView?.disposeComposition()
-        lifecycleOwner.onDestroy()
         logKeeper.log("INFO", "ViaboardService", "Service Destroyed")
     }
 
-    private fun handleKeyPress(key: String) {
+    override fun onKeyPress(key: String) {
         val inputConnection = currentInputConnection ?: return
         when (key) {
             "DEL" -> inputConnection.deleteSurroundingText(1, 0)
             "SPACE" -> inputConnection.commitText(" ", 1)
             "ENTER" -> inputConnection.commitText("\n", 1)
+            "SHIFT", "SYM" -> { /* TODO: Toggle states later */ }
             else -> inputConnection.commitText(key, 1)
         }
     }
 
-    private fun triggerLogKeeper() {
+    override fun onLongPressEnter() {
         logKeeper.log("USER_ACTION", "ViaboardService", "Triggering Log Keeper via Long-Press Enter")
-        // Just demonstrating the hook. As requested: "mapping long-press Enter to triggering logs"
-        // Also let's show a toast to user
         android.widget.Toast.makeText(this, "Log Keeper Triggered", android.widget.Toast.LENGTH_SHORT).show()
     }
 }

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#D1D6DD">
+
+    <!-- Tool Bar / Suggestion Bar -->
+    <FrameLayout
+        android:id="@+id/toolbar_container"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="#E8EAED">
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Suggestion Bar"
+            android:textColor="#333333"
+            android:textSize="14sp" />
+            
+    </FrameLayout>
+
+    <!-- Custom Drawn Keyboard Grid -->
+    <com.example.keyboard.KeyboardView
+        android:id="@+id/keyboard_view"
+        android:layout_width="match_parent"
+        android:layout_height="260dp"
+        android:background="#D1D6DD" />
+
+</LinearLayout>
