@@ -62,6 +62,14 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         super.onStartInputView(info, restarting)
     }
 
+    override fun onComputeInsets(outInsets: Insets) {
+        super.onComputeInsets(outInsets)
+        val view = mainView ?: return
+        outInsets.contentTopInsets = view.top
+        outInsets.visibleTopInsets = view.top
+        outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_CONTENT
+    }
+
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
     }
