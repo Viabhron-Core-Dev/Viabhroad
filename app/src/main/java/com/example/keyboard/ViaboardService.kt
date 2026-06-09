@@ -45,12 +45,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         val root = layoutInflater.inflate(R.layout.keyboard_view, null)
         mainView = root
         
-        // Add padding to avoid drawing underneath the navigation bar
-        ViewCompat.setOnApplyWindowInsetsListener(root) { view, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
-            view.setPadding(0, 0, 0, insets.bottom)
-            windowInsets
-        }
+        // Removed window insets listener as InputMethodService handles this by default
         
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view)
         keyboardView.listener = this

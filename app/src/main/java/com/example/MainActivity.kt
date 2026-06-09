@@ -89,6 +89,16 @@ class MainActivity : ComponentActivity() {
                         ) {
                             Text("2. Select Keyboard")
                         }
+                        
+                        Spacer(modifier = Modifier.height(32.dp))
+                        
+                        var testText by remember { mutableStateOf("") }
+                        OutlinedTextField(
+                            value = testText,
+                            onValueChange = { testText = it },
+                            label = { Text("Test Keyboard Here") },
+                            modifier = Modifier.padding(top = 16.dp)
+                        )
                     }
                 }
             }

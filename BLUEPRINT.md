@@ -47,7 +47,8 @@ A strict logging system active from Phase 1.
 - [x] 4. Connect the new parser to the `KeyboardView`, verifying fluid, baseline QWERTY typing.
 - [x] 5. Hook Log Keeper into the Keyboard service.
 - [x] 6. **Visual & Layout Baseline**: Sync colors, keyboard proportions, drop shadows, and add the persistent Number Row according to the HeliBoard reference UI.
-- [x] 7. **Navigation Bar Insets**: Implement safe window insets via `ViewCompat` on the root view to ensure the keyboard correctly floats above the system navigation bar/pill.
+- [ ] 7. ~~**Navigation Bar Insets**: Implement safe window insets via `ViewCompat`~~ (Reverted: Caused IME to fail rendering/disappear).
+- [x] 8. **Size Calibration**: Shrink the total layout height (calibrated to 260dp) to match the real-world scale of HeliBoard on mobile screens, and add a test TextField mapping to the setup page.
 
 ### Phase 3: Basic UX Tweaks & Suggestion UI
 1. Build the basic Suggestion Bar Row / Toolbar UI above the keyboard (HeliBoard styling).
