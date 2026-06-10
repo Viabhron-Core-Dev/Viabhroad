@@ -9,10 +9,31 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.logkeeper.TheLogKeeper
 import com.example.R
+import com.example.data.AppDatabase
+import com.example.data.WordRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 
 class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private lateinit var logKeeper: TheLogKeeper
     private var mainView: View? = null
+    
+    private lateinit var wordRepository: WordRepository
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var suggestionJob: Job? = null
+    
+    private var isToolbarExpanded = false
+    private var isAutocorrectEnabled = true
+    private var currentWord = StringBuilder()
+    private var currentSuggestions = emptyList<com.example.data.WordEntity>()
+    
+    private var tvSuggestion1: android.widget.TextView? = null
+    private var tvSuggestion2: android.widget.TextView? = null
+    private var tvSuggestion3: android.widget.TextView? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -39,15 +60,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
 
         logKeeper = TheLogKeeper.getInstance(this)
         logKeeper.log("INFO", "ViaboardService", "Service Created (View-based)")
+        
+        wordRepository = WordRepository(AppDatabase.getDatabase(this).wordDao())
     }
-
-    private var isToolbarExpanded = false
 
     override fun onCreateInputView(): View {
         val root = layoutInflater.inflate(R.layout.keyboard_view, null)
         mainView = root
-        
-        // Removed window insets listener as InputMethodService handles this by default
         
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view)
         keyboardView.listener = this
@@ -67,6 +86,16 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         val suggestionContent = root.findViewById<android.view.View>(R.id.suggestion_content)
         val expandedContent = root.findViewById<android.view.View>(R.id.toolbar_expanded_content)
         val btnSelectAll = root.findViewById<android.widget.ImageButton>(R.id.btn_select_all)
+        val btnClipboard = root.findViewById<android.widget.ImageButton>(R.id.btn_clipboard)
+        val btnSettings = root.findViewById<android.widget.ImageButton>(R.id.btn_settings)
+        
+        tvSuggestion1 = root.findViewById(R.id.suggestion_1)
+        tvSuggestion2 = root.findViewById(R.id.suggestion_2)
+        tvSuggestion3 = root.findViewById(R.id.suggestion_3)
+        
+        tvSuggestion1?.setOnClickListener { onSuggestionClicked(tvSuggestion1?.text.toString()) }
+        tvSuggestion2?.setOnClickListener { onSuggestionClicked(tvSuggestion2?.text.toString()) }
+        tvSuggestion3?.setOnClickListener { onSuggestionClicked(tvSuggestion3?.text.toString()) }
         
         btnChevron.setOnClickListener {
             isToolbarExpanded = !isToolbarExpanded
@@ -83,13 +112,35 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         
         btnSelectAll.setOnClickListener {
             val inputConnection = currentInputConnection ?: return@setOnClickListener
-            // Ctrl+A mimic: select all text. Some editors support selectAll action
             inputConnection.performContextMenuAction(android.R.id.selectAll)
         }
+        
+        btnClipboard.setOnClickListener {
+            val inputConnection = currentInputConnection ?: return@setOnClickListener
+            inputConnection.performContextMenuAction(android.R.id.paste)
+        }
+        
+        // Toggle Autocorrect with Settings button temporarily
+        btnSettings.setOnClickListener {
+            isAutocorrectEnabled = !isAutocorrectEnabled
+            val stateText = if (isAutocorrectEnabled) "Autocorrect ON" else "Autocorrect OFF"
+            android.widget.Toast.makeText(this, stateText, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun onSuggestionClicked(word: String) {
+        if (word.isBlank()) return
+        val inputConnection = currentInputConnection ?: return
+        inputConnection.deleteSurroundingText(currentWord.length, 0)
+        inputConnection.commitText(word + " ", 1)
+        currentWord.clear()
+        clearSuggestions()
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        currentWord.clear()
+        clearSuggestions()
     }
 
     override fun onComputeInsets(outInsets: Insets) {
@@ -106,17 +157,81 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
 
     override fun onDestroy() {
         super.onDestroy()
+        coroutineScope.launch {
+             // cancel all in scope
+        } // or just let it die. It's tied to service lifecycle.
         logKeeper.log("INFO", "ViaboardService", "Service Destroyed")
+    }
+    
+    private fun updateSuggestions() {
+        val prefix = currentWord.toString()
+        if (prefix.isBlank()) {
+            clearSuggestions()
+            return
+        }
+        suggestionJob?.cancel()
+        suggestionJob = coroutineScope.launch {
+            wordRepository.getSuggestions(prefix).collect { list ->
+                currentSuggestions = list
+                tvSuggestion1?.text = list.getOrNull(0)?.word ?: ""
+                tvSuggestion2?.text = list.getOrNull(1)?.word ?: ""
+                tvSuggestion3?.text = list.getOrNull(2)?.word ?: ""
+            }
+        }
+    }
+
+    private fun clearSuggestions() {
+        suggestionJob?.cancel()
+        currentSuggestions = emptyList()
+        tvSuggestion1?.text = ""
+        tvSuggestion2?.text = ""
+        tvSuggestion3?.text = ""
     }
 
     override fun onKeyPress(key: String) {
         val inputConnection = currentInputConnection ?: return
         when (key) {
-            "DEL" -> inputConnection.deleteSurroundingText(1, 0)
-            "SPACE" -> inputConnection.commitText(" ", 1)
-            "ENTER" -> inputConnection.commitText("\n", 1)
+            "DEL" -> {
+                val selectedText = inputConnection.getSelectedText(0)
+                if (selectedText != null && selectedText.isNotEmpty()) {
+                    inputConnection.commitText("", 1)
+                    currentWord.clear()
+                    clearSuggestions()
+                } else {
+                    sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
+                    if (currentWord.isNotEmpty()) {
+                        currentWord.deleteCharAt(currentWord.length - 1)
+                        updateSuggestions()
+                    }
+                }
+            }
+            "SPACE" -> {
+                if (isAutocorrectEnabled && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].word != currentWord.toString().lowercase()) {
+                    val topWord = currentSuggestions[0].word
+                    inputConnection.deleteSurroundingText(currentWord.length, 0)
+                    inputConnection.commitText(topWord + " ", 1)
+                } else {
+                    inputConnection.commitText(" ", 1)
+                }
+                currentWord.clear()
+                clearSuggestions()
+            }
+            "ENTER" -> {
+                inputConnection.commitText("\n", 1)
+                currentWord.clear()
+                clearSuggestions()
+            }
             "SHIFT", "SYM" -> { /* TODO: Toggle states later */ }
-            else -> inputConnection.commitText(key, 1)
+            else -> {
+                inputConnection.commitText(key, 1)
+                if (key.length == 1 && key[0].isLetter()) {
+                    currentWord.append(key)
+                    updateSuggestions()
+                } else {
+                    currentWord.clear()
+                    clearSuggestions()
+                }
+            }
         }
     }
 

@@ -53,10 +53,11 @@ A strict logging system active from Phase 1.
 ### Phase 3: Basic UX Tweaks & Suggestion UI
 - [x] 1. Build the basic Suggestion Bar Row / Toolbar UI above the keyboard (HeliBoard styling) with chevron expand/collapse toggles.
 - [x] 2. Implement "Backspace erase all behind cursor" (long-press).
-- [x] 3. Implement "Select All" (Ctrl+A mimic) in toolbar.
+- [x] 3. Implement "Select All" (Ctrl+A mimic) and "Paste" functionality in the expanded toolbar.
+- [x] 4. Fix Backspace/DEL to properly delete selected text (Select All + Delete fix).
 
 ### Phase 4: Vocabulary SQLite & Autocorrect Foundation
-1. Set up the main SQLite `Divided Library`.
+- [x] 1. Set up the main SQLite `Divided Library`.
 2. Integrate static English word list (pure Kotlin).
 3. Implement n-gram next-word prediction logic in the suggestion bar.
 

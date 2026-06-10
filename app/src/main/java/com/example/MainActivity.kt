@@ -9,9 +9,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -25,6 +27,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.logkeeper.ui.LogKeeperScreen
 import com.example.ui.theme.MyApplicationTheme
+import com.example.data.AppDatabase
+import com.example.data.WordRepository
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,6 +39,10 @@ class MainActivity : ComponentActivity() {
       MyApplicationTheme {
         var showLogKeeper by remember { mutableStateOf(false) }
         val context = LocalContext.current
+        val coroutineScope = rememberCoroutineScope()
+        val wordRepository = remember {
+            WordRepository(AppDatabase.getDatabase(context).wordDao())
+        }
 
         if (showLogKeeper) {
             LogKeeperScreen(onClose = { showLogKeeper = false })
@@ -59,7 +68,7 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
                         Text(
-                            text = "Phase 1: Foundation & Telemetry\nTap the FAB to access The Log Keeper.",
+                            text = "Phase 4: Vocabulary SQLite & Autocorrect\nTap the FAB to access The Log Keeper.",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center
                         )
@@ -92,6 +101,29 @@ class MainActivity : ComponentActivity() {
                         
                         Spacer(modifier = Modifier.height(32.dp))
                         
+                        var newWord by remember { mutableStateOf("") }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = newWord,
+                                onValueChange = { newWord = it },
+                                label = { Text("Add Word to Library") },
+                                modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+                            )
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        wordRepository.addWord(newWord)
+                                        newWord = ""
+                                    }
+                                },
+                                modifier = Modifier.padding(end = 16.dp)
+                            ) {
+                                Text("Add")
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
                         var testText by remember { mutableStateOf("") }
                         OutlinedTextField(
                             value = testText,
@@ -107,3 +139,4 @@ class MainActivity : ComponentActivity() {
     }
   }
 }
+

@@ -66,12 +66,57 @@
                 android:orientation="horizontal"
                 android:gravity="center"
                 android:visibility="visible">
+                
                 <TextView
-                     android:layout_width="wrap_content"
-                     android:layout_height="wrap_content"
-                     android:text="Suggestion Bar"
+                     android:id="@+id/suggestion_1"
+                     android:layout_width="0dp"
+                     android:layout_height="match_parent"
+                     android:layout_weight="1"
+                     android:gravity="center"
+                     android:text=""
                      android:textColor="#333333"
-                     android:textSize="14sp" />
+                     android:padding="8dp"
+                     android:textSize="14sp"
+                     android:background="?android:attr/selectableItemBackground"
+                     android:clickable="true" />
+                     
+                <View
+                     android:layout_width="1dp"
+                     android:layout_height="match_parent"
+                     android:layout_marginVertical="8dp"
+                     android:background="#CCCCCC" />
+                     
+                <TextView
+                     android:id="@+id/suggestion_2"
+                     android:layout_width="0dp"
+                     android:layout_height="match_parent"
+                     android:layout_weight="1"
+                     android:gravity="center"
+                     android:text=""
+                     android:textColor="#333333"
+                     android:padding="8dp"
+                     android:textSize="14sp"
+                     android:background="?android:attr/selectableItemBackground"
+                     android:clickable="true" />
+                     
+                <View
+                     android:layout_width="1dp"
+                     android:layout_height="match_parent"
+                     android:layout_marginVertical="8dp"
+                     android:background="#CCCCCC" />
+                     
+                <TextView
+                     android:id="@+id/suggestion_3"
+                     android:layout_width="0dp"
+                     android:layout_height="match_parent"
+                     android:layout_weight="1"
+                     android:gravity="center"
+                     android:text=""
+                     android:textColor="#333333"
+                     android:padding="8dp"
+                     android:textSize="14sp"
+                     android:background="?android:attr/selectableItemBackground"
+                     android:clickable="true" />
             </LinearLayout>
 
             <!-- Pinned Keys -->
