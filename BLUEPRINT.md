@@ -51,9 +51,9 @@ A strict logging system active from Phase 1.
 - [x] 8. **Size Calibration**: Shrink the total layout height (calibrated to 260dp) to match the real-world scale of HeliBoard on mobile screens, and add a test TextField mapping to the setup page.
 
 ### Phase 3: Basic UX Tweaks & Suggestion UI
-1. Build the basic Suggestion Bar Row / Toolbar UI above the keyboard (HeliBoard styling).
-2. Implement "Backspace erase all behind cursor" (long-press).
-3. Implement "Select All" (Ctrl+A mimic) in toolbar.
+- [x] 1. Build the basic Suggestion Bar Row / Toolbar UI above the keyboard (HeliBoard styling) with chevron expand/collapse toggles.
+- [x] 2. Implement "Backspace erase all behind cursor" (long-press).
+- [x] 3. Implement "Select All" (Ctrl+A mimic) in toolbar.
 
 ### Phase 4: Vocabulary SQLite & Autocorrect Foundation
 1. Set up the main SQLite `Divided Library`.

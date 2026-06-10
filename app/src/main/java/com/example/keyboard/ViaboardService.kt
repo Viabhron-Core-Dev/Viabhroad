@@ -41,6 +41,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         logKeeper.log("INFO", "ViaboardService", "Service Created (View-based)")
     }
 
+    private var isToolbarExpanded = false
+
     override fun onCreateInputView(): View {
         val root = layoutInflater.inflate(R.layout.keyboard_view, null)
         mainView = root
@@ -55,7 +57,35 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         val keyboard = parser.parse(R.xml.kbd_qwerty)
         keyboardView.setKeyboard(keyboard)
         
+        setupToolbar(root)
+        
         return root
+    }
+
+    private fun setupToolbar(root: View) {
+        val btnChevron = root.findViewById<android.widget.ImageButton>(R.id.btn_toolbar_chevron)
+        val suggestionContent = root.findViewById<android.view.View>(R.id.suggestion_content)
+        val expandedContent = root.findViewById<android.view.View>(R.id.toolbar_expanded_content)
+        val btnSelectAll = root.findViewById<android.widget.ImageButton>(R.id.btn_select_all)
+        
+        btnChevron.setOnClickListener {
+            isToolbarExpanded = !isToolbarExpanded
+            if (isToolbarExpanded) {
+                btnChevron.setImageResource(R.drawable.ic_chevron_left)
+                suggestionContent.visibility = View.GONE
+                expandedContent.visibility = View.VISIBLE
+            } else {
+                btnChevron.setImageResource(R.drawable.ic_chevron_right)
+                suggestionContent.visibility = View.VISIBLE
+                expandedContent.visibility = View.GONE
+            }
+        }
+        
+        btnSelectAll.setOnClickListener {
+            val inputConnection = currentInputConnection ?: return@setOnClickListener
+            // Ctrl+A mimic: select all text. Some editors support selectAll action
+            inputConnection.performContextMenuAction(android.R.id.selectAll)
+        }
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
@@ -87,6 +117,22 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "ENTER" -> inputConnection.commitText("\n", 1)
             "SHIFT", "SYM" -> { /* TODO: Toggle states later */ }
             else -> inputConnection.commitText(key, 1)
+        }
+    }
+
+    override fun onLongPressBackspace() {
+        val inputConnection = currentInputConnection ?: return
+        val currentText = inputConnection.getTextBeforeCursor(10000, 0)
+        if (!currentText.isNullOrEmpty()) {
+            val lastNewline = currentText.lastIndexOf('\n')
+            val deleteCount = if (lastNewline != -1) {
+                currentText.length - lastNewline - 1
+            } else {
+                currentText.length
+            }
+            if (deleteCount > 0) {
+                inputConnection.deleteSurroundingText(deleteCount, 0)
+            }
         }
     }
 

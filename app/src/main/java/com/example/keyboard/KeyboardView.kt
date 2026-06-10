@@ -16,6 +16,7 @@ class KeyboardView @JvmOverloads constructor(
     interface KeyboardListener {
         fun onKeyPress(key: String)
         fun onLongPressEnter()
+        fun onLongPressBackspace()
     }
 
     var listener: KeyboardListener? = null
@@ -138,6 +139,8 @@ class KeyboardView @JvmOverloads constructor(
                     val duration = System.currentTimeMillis() - downTime
                     if (key?.codes == "ENTER" && duration > 500) {
                         listener?.onLongPressEnter()
+                    } else if (key?.codes == "DEL" && duration > 500) {
+                        listener?.onLongPressBackspace()
                     } else {
                         key?.codes?.let { listener?.onKeyPress(it) }
                     }
