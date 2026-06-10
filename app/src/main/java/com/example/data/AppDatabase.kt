@@ -5,7 +5,12 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [WordEntity::class], version = 1, exportSchema = false)
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+@Database(entities = [WordEntity::class, BigramEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun wordDao(): WordDao
 
@@ -19,9 +24,27 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "viaboard_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .addCallback(object : RoomDatabase.Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        super.onCreate(db)
+                        INSTANCE?.let { database ->
+                            CoroutineScope(Dispatchers.IO).launch {
+                                populateDatabase(database.wordDao())
+                            }
+                        }
+                    }
+                })
+                .build()
                 INSTANCE = instance
                 instance
+            }
+        }
+        
+        suspend fun populateDatabase(wordDao: WordDao) {
+            commonEnglishWords.forEach { word ->
+                wordDao.upsertWord(word)
             }
         }
     }

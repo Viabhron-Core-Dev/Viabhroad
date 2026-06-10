@@ -29,6 +29,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var isToolbarExpanded = false
     private var isAutocorrectEnabled = true
     private var currentWord = StringBuilder()
+    private var previousWord: String? = null
     private var currentSuggestions = emptyList<com.example.data.WordEntity>()
     
     private var tvSuggestion1: android.widget.TextView? = null
@@ -133,13 +134,26 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         val inputConnection = currentInputConnection ?: return
         inputConnection.deleteSurroundingText(currentWord.length, 0)
         inputConnection.commitText(word + " ", 1)
+        commitWord(word)
+    }
+
+    private fun commitWord(word: String) {
+        val finalWord = word.lowercase()
+        coroutineScope.launch {
+            wordRepository.addWord(finalWord)
+            previousWord?.let { prev ->
+                wordRepository.addBigram(prev, finalWord)
+            }
+            previousWord = finalWord
+        }
         currentWord.clear()
-        clearSuggestions()
+        updateSuggestions()
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         currentWord.clear()
+        previousWord = null
         clearSuggestions()
     }
 
@@ -165,11 +179,25 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     
     private fun updateSuggestions() {
         val prefix = currentWord.toString()
+        suggestionJob?.cancel()
+        
         if (prefix.isBlank()) {
-            clearSuggestions()
+            val prev = previousWord
+            if (prev != null) {
+                suggestionJob = coroutineScope.launch {
+                    wordRepository.getNextWordSuggestions(prev).collect { list ->
+                        currentSuggestions = list
+                        tvSuggestion1?.text = list.getOrNull(0)?.word ?: ""
+                        tvSuggestion2?.text = list.getOrNull(1)?.word ?: ""
+                        tvSuggestion3?.text = list.getOrNull(2)?.word ?: ""
+                    }
+                }
+            } else {
+                clearSuggestions()
+            }
             return
         }
-        suggestionJob?.cancel()
+
         suggestionJob = coroutineScope.launch {
             wordRepository.getSuggestions(prefix).collect { list ->
                 currentSuggestions = list
@@ -210,16 +238,21 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                     val topWord = currentSuggestions[0].word
                     inputConnection.deleteSurroundingText(currentWord.length, 0)
                     inputConnection.commitText(topWord + " ", 1)
+                    commitWord(topWord)
                 } else {
                     inputConnection.commitText(" ", 1)
+                    if (currentWord.isNotEmpty()) {
+                        commitWord(currentWord.toString())
+                    }
                 }
-                currentWord.clear()
-                clearSuggestions()
             }
             "ENTER" -> {
                 inputConnection.commitText("\n", 1)
-                currentWord.clear()
-                clearSuggestions()
+                if (currentWord.isNotEmpty()) {
+                    commitWord(currentWord.toString())
+                }
+                previousWord = null
+                updateSuggestions()
             }
             "SHIFT", "SYM" -> { /* TODO: Toggle states later */ }
             else -> {

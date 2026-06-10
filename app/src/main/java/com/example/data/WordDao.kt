@@ -28,4 +28,25 @@ interface WordDao {
             insertWord(WordEntity(lowerWord, 1))
         }
     }
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBigram(bigram: BigramEntity)
+
+    @Query("SELECT * FROM bigrams WHERE word1 = :word1 AND word2 = :word2")
+    suspend fun getBigram(word1: String, word2: String): BigramEntity?
+
+    @Query("SELECT word2 as word, frequency FROM bigrams WHERE word1 = :word1 ORDER BY frequency DESC LIMIT 3")
+    fun getNextWordSuggestions(word1: String): Flow<List<WordEntity>>
+
+    @Transaction
+    suspend fun upsertBigram(word1Str: String, word2Str: String) {
+        val w1 = word1Str.lowercase()
+        val w2 = word2Str.lowercase()
+        val existing = getBigram(w1, w2)
+        if (existing != null) {
+            insertBigram(existing.copy(frequency = existing.frequency + 1))
+        } else {
+            insertBigram(BigramEntity(w1, w2, 1))
+        }
+    }
 }

@@ -58,8 +58,8 @@ A strict logging system active from Phase 1.
 
 ### Phase 4: Vocabulary SQLite & Autocorrect Foundation
 - [x] 1. Set up the main SQLite `Divided Library`.
-2. Integrate static English word list (pure Kotlin).
-3. Implement n-gram next-word prediction logic in the suggestion bar.
+- [x] 2. Integrate static English word list (pure Kotlin).
+- [x] 3. Implement n-gram next-word prediction logic in the suggestion bar.
 
 ### Phase 5: Learning & Personalization
 1. Implement dynamic word learning (adding to `words_phrases` table).
