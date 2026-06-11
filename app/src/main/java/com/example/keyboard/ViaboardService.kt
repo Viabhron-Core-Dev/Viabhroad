@@ -31,6 +31,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var currentWord = StringBuilder()
     private var previousWord: String? = null
     private var currentSuggestions = emptyList<com.example.data.WordEntity>()
+    private var inAccentMode = false
     
     private var tvSuggestion1: android.widget.TextView? = null
     private var tvSuggestion2: android.widget.TextView? = null
@@ -132,8 +133,29 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private fun onSuggestionClicked(word: String) {
         if (word.isBlank()) return
         val inputConnection = currentInputConnection ?: return
+        
+        if (inAccentMode) {
+            inAccentMode = false
+            inputConnection.commitText(word, 1)
+            
+            // if we are in middle of word, we should probably append to currentWord
+            // let's just append to currentWord to keep autocomplete working
+            if (word.length == 1 && word[0].isLetter()) {
+                currentWord.append(word)
+            }
+            updateSuggestions()
+            return
+        }
+        
+        val isCapitalized = currentWord.isNotEmpty() && currentWord[0].isUpperCase()
+        val finalWord = if (isCapitalized) {
+            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+        } else {
+            word
+        }
+        
         inputConnection.deleteSurroundingText(currentWord.length, 0)
-        inputConnection.commitText(word + " ", 1)
+        inputConnection.commitText(finalWord + " ", 1)
         commitWord(word)
     }
 
@@ -216,8 +238,29 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         tvSuggestion3?.text = ""
     }
 
+    private fun shouldAutoCapitalize(): Boolean {
+        val ic = currentInputConnection ?: return false
+        val currentInfo = currentInputEditorInfo
+        if (currentInfo != null) {
+            val type = currentInfo.inputType
+            if (type and android.text.InputType.TYPE_CLASS_TEXT != 0) {
+                val capsMode = ic.getCursorCapsMode(type)
+                if (capsMode and android.text.TextUtils.CAP_MODE_SENTENCES != 0 ||
+                    capsMode and android.text.TextUtils.CAP_MODE_WORDS != 0 ||
+                    capsMode and android.text.TextUtils.CAP_MODE_CHARACTERS != 0) {
+                    return true
+                }
+            }
+        }
+        val beforeCursor = ic.getTextBeforeCursor(3, 0) ?: return true
+        if (beforeCursor.isEmpty()) return true
+        val text = beforeCursor.toString()
+        return text.endsWith(". ") || text.endsWith("! ") || text.endsWith("? ") || text.endsWith("\n")
+    }
+
     override fun onKeyPress(key: String) {
         val inputConnection = currentInputConnection ?: return
+        inAccentMode = false
         when (key) {
             "DEL" -> {
                 val selectedText = inputConnection.getSelectedText(0)
@@ -235,10 +278,16 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             }
             "SPACE" -> {
                 if (isAutocorrectEnabled && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].word != currentWord.toString().lowercase()) {
-                    val topWord = currentSuggestions[0].word
+                    val topWordText = currentSuggestions[0].word
+                    val isCapitalized = currentWord[0].isUpperCase()
+                    val topWord = if (isCapitalized) {
+                        topWordText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+                    } else {
+                        topWordText
+                    }
                     inputConnection.deleteSurroundingText(currentWord.length, 0)
                     inputConnection.commitText(topWord + " ", 1)
-                    commitWord(topWord)
+                    commitWord(topWordText)
                 } else {
                     inputConnection.commitText(" ", 1)
                     if (currentWord.isNotEmpty()) {
@@ -256,15 +305,55 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             }
             "SHIFT", "SYM" -> { /* TODO: Toggle states later */ }
             else -> {
-                inputConnection.commitText(key, 1)
-                if (key.length == 1 && key[0].isLetter()) {
-                    currentWord.append(key)
+                var finalKey = key
+                if (key.length == 1 && key[0].isLetter() && currentWord.isEmpty()) {
+                    if (shouldAutoCapitalize()) {
+                        finalKey = key.uppercase()
+                    }
+                }
+                
+                inputConnection.commitText(finalKey, 1)
+                if (finalKey.length == 1 && finalKey[0].isLetter()) {
+                    currentWord.append(finalKey)
                     updateSuggestions()
                 } else {
                     currentWord.clear()
                     clearSuggestions()
                 }
             }
+        }
+    }
+
+    override fun onLongPressKey(key: String) {
+        val accents = when (key.lowercase()) {
+            "a" -> listOf("á", "à", "â")
+            "e" -> listOf("é", "3", "è")
+            "i" -> listOf("í", "8", "ì")
+            "o" -> listOf("ó", "9", "ò")
+            "u" -> listOf("ú", "7", "ù")
+            "c" -> listOf("ç", "ć", "č")
+            "n" -> listOf("ñ", "ń", "ň")
+            "s" -> listOf("ß", "ś", "š")
+            "q" -> listOf("1", "!", "")
+            "w" -> listOf("2", "@", "")
+            "r" -> listOf("4", "#", "")
+            "t" -> listOf("5", "%", "")
+            "y" -> listOf("6", "^", "")
+            "p" -> listOf("0", "*", "")
+            "!" -> listOf("!", "¡", "")
+            "?" -> listOf("?", "¿", "")
+            else -> emptyList()
+        }
+        
+        if (accents.isNotEmpty()) {
+            inAccentMode = true
+            suggestionJob?.cancel()
+            tvSuggestion1?.text = accents.getOrNull(0) ?: ""
+            tvSuggestion2?.text = accents.getOrNull(1) ?: ""
+            tvSuggestion3?.text = accents.getOrNull(2) ?: ""
+        } else {
+            // fall back to default behavior if no accents
+            onKeyPress(key)
         }
     }
 

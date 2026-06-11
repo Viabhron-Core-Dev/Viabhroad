@@ -62,9 +62,9 @@ A strict logging system active from Phase 1.
 - [x] 3. Implement n-gram next-word prediction logic in the suggestion bar.
 
 ### Phase 5: Learning & Personalization
-1. Implement dynamic word learning (adding to `words_phrases` table).
-2. Implement priority weighting for personal words over static dictionary.
-3. Build "Quick Phrases" SQLite inserts and suggestion UI.
+- [x] 1. Implement dynamic word learning (upsert into `words` and `bigrams` table).
+- [x] 2. Auto-capitalize the first letter of sentences.
+- [x] 3. Handle long-press UI adjustments (symbols, accents preview).
 
 ### Phase 6: Incognito & Context Handling
 1. Monitor `EditorInfo` flags to auto-detect passwords and sensitive fields.

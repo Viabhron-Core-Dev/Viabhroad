@@ -15,6 +15,7 @@ class KeyboardView @JvmOverloads constructor(
 
     interface KeyboardListener {
         fun onKeyPress(key: String)
+        fun onLongPressKey(key: String)
         fun onLongPressEnter()
         fun onLongPressBackspace()
     }
@@ -141,6 +142,8 @@ class KeyboardView @JvmOverloads constructor(
                         listener?.onLongPressEnter()
                     } else if (key?.codes == "DEL" && duration > 500) {
                         listener?.onLongPressBackspace()
+                    } else if (duration > 500) {
+                        key?.codes?.let { listener?.onLongPressKey(it) }
                     } else {
                         key?.codes?.let { listener?.onKeyPress(it) }
                     }
