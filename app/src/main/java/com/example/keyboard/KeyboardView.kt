@@ -23,6 +23,15 @@ class KeyboardView @JvmOverloads constructor(
     var listener: KeyboardListener? = null
     private var keyboard: Keyboard? = null
 
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val longPressRunnable = Runnable { triggerLongPress() }
+
+    private var isAccentPopupVisible = false
+    private var accentOptions = emptyList<String>()
+    private var accentOptionRects = mutableListOf<Pair<String, RectF>>()
+    private var hoveredAccentIndex = -1
+    private var accentPopupRect = RectF()
+
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
@@ -36,6 +45,22 @@ class KeyboardView @JvmOverloads constructor(
         color = Color.BLACK
         textAlign = Paint.Align.CENTER
         textSize = 55f
+    }
+
+    private val accentPopupPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.WHITE
+    }
+    
+    private val accentPopupShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = Color.LTGRAY
+        strokeWidth = 2f
+    }
+
+    private val accentHoverPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.LTGRAY
     }
 
     private val keyMarginHorizontal = 8f
@@ -95,7 +120,7 @@ class KeyboardView @JvmOverloads constructor(
                 canvas.drawRoundRect(shadowRect, cornerRadius, cornerRadius, shadowPaint)
                 
                 // Draw Key Background
-                bgPaint.color = if (key == pressedKey) Color.LTGRAY 
+                bgPaint.color = if (key == pressedKey && !isAccentPopupVisible) Color.LTGRAY 
                                 else if (key.isFunctional) Color.parseColor("#B4BACC") 
                                 else Color.WHITE
                 
@@ -106,57 +131,165 @@ class KeyboardView @JvmOverloads constructor(
                 canvas.drawText(key.label, rect.centerX(), textY, textPaint)
             }
         }
+
+        if (isAccentPopupVisible) {
+            // Draw Popup shadow/background
+            canvas.drawRoundRect(accentPopupRect, cornerRadius, cornerRadius, accentPopupPaint)
+            canvas.drawRoundRect(accentPopupRect, cornerRadius, cornerRadius, accentPopupShadowPaint)
+
+            // Draw options
+            for ((index, optionData) in accentOptionRects.withIndex()) {
+                val (option, rect) = optionData
+                if (index == hoveredAccentIndex) {
+                    canvas.drawRoundRect(rect, cornerRadius, cornerRadius, accentHoverPaint)
+                }
+
+                val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
+                canvas.drawText(option, rect.centerX(), textY, textPaint)
+            }
+        }
     }
 
     private var pressedKey: Key? = null
-    private var downTime = 0L
+    private var isPressedValid = false
+
+    private fun getAccentsForKey(key: String): List<String> {
+        return when (key.lowercase()) {
+            "a" -> listOf("a", "á", "à", "â")
+            "e" -> listOf("e", "é", "3", "è", "ê")
+            "i" -> listOf("i", "í", "8", "ì", "î")
+            "o" -> listOf("o", "ó", "9", "ò", "ô")
+            "u" -> listOf("u", "ú", "7", "ù", "û")
+            "c" -> listOf("c", "ç", "ć", "č")
+            "n" -> listOf("n", "ñ", "ń", "ň")
+            "s" -> listOf("s", "ß", "ś", "š")
+            "q" -> listOf("q", "1", "!")
+            "w" -> listOf("w", "2", "@")
+            "r" -> listOf("r", "4", "#")
+            "t" -> listOf("t", "5", "%")
+            "y" -> listOf("y", "6", "^")
+            "p" -> listOf("p", "0", "*")
+            "!" -> listOf("!", "¡")
+            "?" -> listOf("?", "¿")
+            else -> emptyList()
+        }
+    }
+
+    private fun triggerLongPress() {
+        val key = pressedKey ?: return
+        if (!isPressedValid) return
+
+        if (key.codes == "ENTER") {
+            listener?.onLongPressEnter()
+            pressedKey = null
+            isPressedValid = false
+            invalidate()
+        } else if (key.codes == "DEL") {
+            listener?.onLongPressBackspace()
+            pressedKey = null
+            isPressedValid = false
+            invalidate()
+        } else {
+            val options = getAccentsForKey(key.codes)
+            if (options.isNotEmpty()) {
+                isAccentPopupVisible = true
+                accentOptions = options
+                hoveredAccentIndex = -1
+                
+                val popupItemWidth = key.width * 1.5f
+                val popupItemHeight = key.height * 1.5f
+                
+                val totalWidth = popupItemWidth * options.size
+                
+                var startX = key.x + (key.width / 2) - (totalWidth / 2)
+                if (startX < 0) startX = 10f
+                if (startX + totalWidth > width) startX = width - totalWidth - 10f
+                
+                // make it pop up slightly above the key
+                val popupY = key.y - popupItemHeight - 20f
+                
+                accentPopupRect = RectF(startX, popupY, startX + totalWidth, popupY + popupItemHeight)
+                
+                accentOptionRects.clear()
+                var currentX = startX
+                for (opt in options) {
+                    accentOptionRects.add(
+                        Pair(opt, RectF(currentX, popupY, currentX + popupItemWidth, popupY + popupItemHeight))
+                    )
+                    currentX += popupItemWidth
+                }
+                invalidate()
+            }
+        }
+    }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val x = event.x
         val y = event.y
-        val key = findKey(x, y)
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                val key = findKey(x, y)
                 if (key != null && key.codes.isNotEmpty()) {
                     pressedKey = key
-                    downTime = System.currentTimeMillis()
+                    isPressedValid = true
+                    handler.postDelayed(longPressRunnable, 400)
                     invalidate()
                 }
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
-                if (key != pressedKey && key?.codes?.isNotEmpty() == true) {
-                    pressedKey = key
+                if (isAccentPopupVisible) {
+                    hoveredAccentIndex = -1
+                    for ((index, optionData) in accentOptionRects.withIndex()) {
+                        val rect = optionData.second
+                        // Expand touch target slightly for easier dragging
+                        val touchRect = RectF(rect.left - 10, rect.top - 50, rect.right + 10, rect.bottom + 50)
+                        if (touchRect.contains(x, y)) {
+                            hoveredAccentIndex = index
+                            break
+                        }
+                    }
                     invalidate()
-                } else if (key == null || key?.codes?.isEmpty() == true) {
-                    pressedKey = null
-                    invalidate()
+                } else if (isPressedValid) {
+                    // Check if finger moved too far from the key
+                    val key = pressedKey
+                    if (key != null) {
+                        val rect = RectF(key.x, key.y, key.x + key.width, key.y + key.height)
+                        // If moved significantly out of bounds, cancel long press
+                        if (!rect.contains(x, y)) {
+                            isPressedValid = false
+                            pressedKey = findKey(x, y)
+                            handler.removeCallbacks(longPressRunnable)
+                            invalidate()
+                        }
+                    }
                 }
                 return true
             }
             MotionEvent.ACTION_UP -> {
-                if (pressedKey != null && pressedKey == key) {
-                    val duration = System.currentTimeMillis() - downTime
-                    if (key?.codes == "ENTER" && duration > 500) {
-                        listener?.onLongPressEnter()
-                    } else if (key?.codes == "DEL" && duration > 500) {
-                        listener?.onLongPressBackspace()
-                    } else if (duration > 500) {
-                        if (key?.codes != null) {
-                            val rect = RectF(key.x, key.y, key.x + key.width, key.y + key.height)
-                            listener?.onLongPressKey(key.codes, rect, this@KeyboardView)
-                        }
-                    } else {
-                        key?.codes?.let { listener?.onKeyPress(it) }
+                handler.removeCallbacks(longPressRunnable)
+                if (isAccentPopupVisible) {
+                    if (hoveredAccentIndex != -1) {
+                        val option = accentOptionRects[hoveredAccentIndex].first
+                        listener?.onKeyPress(option)
                     }
+                    isAccentPopupVisible = false
+                    hoveredAccentIndex = -1
+                } else if (isPressedValid && pressedKey != null) {
+                    pressedKey?.codes?.let { listener?.onKeyPress(it) }
                 }
+                
                 pressedKey = null
+                isPressedValid = false
                 invalidate()
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
+                handler.removeCallbacks(longPressRunnable)
+                isAccentPopupVisible = false
                 pressedKey = null
+                isPressedValid = false
                 invalidate()
                 return true
             }
