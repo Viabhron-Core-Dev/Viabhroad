@@ -21,6 +21,7 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     var listener: KeyboardListener? = null
+    fun getKeyboard(): Keyboard? = keyboard
     private var keyboard: Keyboard? = null
 
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -186,6 +187,11 @@ class KeyboardView @JvmOverloads constructor(
             invalidate()
         } else if (key.codes == "DEL") {
             listener?.onLongPressBackspace()
+            pressedKey = null
+            isPressedValid = false
+            invalidate()
+        } else if (key.codes == "SHIFT") {
+            listener?.onLongPressKey("SHIFT", RectF(key.x, key.y, key.x + key.width, key.y + key.height), this)
             pressedKey = null
             isPressedValid = false
             invalidate()

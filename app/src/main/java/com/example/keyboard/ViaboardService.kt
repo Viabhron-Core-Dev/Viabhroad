@@ -29,6 +29,12 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var isToolbarExpanded = false
     private var isAutocorrectEnabled = true
     private var isManualIncognito = false
+    
+    enum class ShiftState {
+        LOWERCASE, UPPERCASE, CAPS_LOCK
+    }
+    private var shiftState = ShiftState.LOWERCASE
+    
     private var lastSpaceTime = 0L
     private var currentWord = StringBuilder()
     private var previousWord: String? = null
@@ -191,6 +197,12 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         previousWord = null
         clearSuggestions()
         updateIncognitoStateUI()
+        updateShiftState()
+    }
+
+    override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        updateShiftState()
     }
 
     private fun isIncognitoActive(): Boolean {
@@ -336,6 +348,33 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         tvSuggestion3?.text = ""
     }
 
+    private fun updateShiftState(force: ShiftState? = null) {
+        if (force != null) {
+            shiftState = force
+        } else {
+            if (shiftState == ShiftState.CAPS_LOCK) return
+            shiftState = if (shouldAutoCapitalize()) ShiftState.UPPERCASE else ShiftState.LOWERCASE
+        }
+        
+        val kv = mainView?.findViewById<com.example.keyboard.KeyboardView>(R.id.keyboard_view) ?: return
+        val kbd = kv.getKeyboard() ?: return
+        
+        for (row in kbd.rows) {
+            for (key in row.keys) {
+                if (key.codes.length == 1 && key.codes[0].isLetter()) {
+                    key.label = if (shiftState == ShiftState.LOWERCASE) key.codes.lowercase() else key.codes.uppercase()
+                } else if (key.codes == "SHIFT") {
+                    key.label = when (shiftState) {
+                        ShiftState.LOWERCASE -> "⇧"
+                        ShiftState.UPPERCASE -> "⬆"
+                        ShiftState.CAPS_LOCK -> "⇪"
+                    }
+                }
+            }
+        }
+        kv.invalidate()
+    }
+
     private fun shouldAutoCapitalize(): Boolean {
         val ic = currentInputConnection ?: return false
         val currentInfo = currentInputEditorInfo
@@ -372,6 +411,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                         updateSuggestions()
                     }
                 }
+                updateShiftState()
             }
             "SPACE" -> {
                 val now = System.currentTimeMillis()
@@ -382,6 +422,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                     inputConnection.deleteSurroundingText(1, 0)
                     inputConnection.commitText(". ", 1)
                     lastSpaceTime = 0L
+                    updateShiftState()
                     return
                 }
 
@@ -404,6 +445,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                     }
                     lastSpaceTime = now
                 }
+                updateShiftState()
             }
             "ENTER" -> {
                 inputConnection.commitText("\n", 1)
@@ -412,17 +454,28 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 }
                 previousWord = null
                 updateSuggestions()
+                updateShiftState()
             }
-            "SHIFT", "SYM" -> { /* TODO: Toggle states later */ }
+            "SHIFT" -> {
+                when (shiftState) {
+                    ShiftState.LOWERCASE -> updateShiftState(ShiftState.UPPERCASE)
+                    ShiftState.UPPERCASE -> updateShiftState(ShiftState.LOWERCASE)
+                    ShiftState.CAPS_LOCK -> updateShiftState(ShiftState.LOWERCASE)
+                }
+            }
+            "SYM" -> { /* TODO: Toggle states later */ }
             else -> {
                 var finalKey = key
-                if (key.length == 1 && key[0].isLetter() && currentWord.isEmpty()) {
-                    if (shouldAutoCapitalize()) {
-                        finalKey = key.uppercase()
-                    }
+                if (key.length == 1 && key[0].isLetter()) {
+                    finalKey = if (shiftState == ShiftState.LOWERCASE) key.lowercase() else key.uppercase()
                 }
                 
                 inputConnection.commitText(finalKey, 1)
+                
+                if (shiftState == ShiftState.UPPERCASE && finalKey.length == 1 && finalKey[0].isLetter()) {
+                    updateShiftState(ShiftState.LOWERCASE)
+                }
+                
                 if (finalKey.length == 1 && finalKey[0].isLetter()) {
                     currentWord.append(finalKey)
                     updateSuggestions()
@@ -435,7 +488,10 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     }
 
     override fun onLongPressKey(key: String, keyRect: android.graphics.RectF, keyboardView: View) {
-        // Handled completely in inline KeyboardView logic now.
+        if (key == "SHIFT") {
+            updateShiftState(ShiftState.CAPS_LOCK)
+        }
+        // Accents are handled completely in inline KeyboardView logic now.
     }
 
     override fun onLongPressBackspace() {

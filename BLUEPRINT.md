@@ -71,35 +71,44 @@ A strict logging system active from Phase 1.
 - [x] 2. Build Incognito Mode (manual Toggle + auto-trigger).
 - [x] 3. Wire Incognito to instantly disable dictionary learning and clipboard history.
 
-### Phase 7: The Double Clipboard
+### Phase 7: Core Keyboard Features
+1. **Capitalization & Shift States**: Shift button to toggle between lowercase, uppercase (Shift), and Caps Lock (Long press).
+2. **Numbers & Symbols Modal**: Shift key toggles to number and symbol modifier layouts.
+3. **Key Popups**: Visual popups for symbols and alternative characters on long press (e.g., holding 'a' for 'á').
+4. **Emoji Support**: Emoji keyboard layout, selection, and integration.
+5. **Multi-language Support & Dictionaries**: Support for loading and managing dictionary files per language (similar to HeliBoard).
+6. **Advanced Prediction**: Next word prediction refinement, support for quick phrases, and adding entries to personal dictionary.
+7. **Toolbar & Settings Customization**: Main layout settings page. Ability to pin and manage standard and advanced toolbar keys (Voice input, Clipboard history, Numpad, Undo/Redo, Settings, Select tools, Copy/Cut/Paste, One-handed mode, Auto-correction, Emoji, Navigation keys, etc.).
+
+### Phase 8: The Double Clipboard
 1. Regular Rolling Clipboard UI Modal & SQLite logic.
 2. Pinned Clipboard UI Modal & pinning behavior (long-press move).
 3. Image clip support (max 2 images limit) within regular clipboard.
 
-### Phase 8: Privacy Vault
+### Phase 9: Privacy Vault
 1. Build Pure Kotlin encrypted key-value store database module.
 2. Implement suggestion bar masking logic for partial matches.
 3. Implement biometric/PIN gate to unlock and insert full text.
 
-### Phase 9: Security Vault (KeePassDX)
+### Phase 10: Security Vault (KeePassDX)
 1. Integrate the `KeePassDX` pure Kotlin library.
 2. Provide isolated access UI (Modal with folder/entry select).
 3. Ensure strictly sandboxed architecture (no crossover to main SQLite).
 
-### Phase 10: Dynamic Layouts & Coding Mode
+### Phase 11: Dynamic Layouts & Coding Mode
 1. Hook up the JSON layout parser (for dynamic keys).
 2. Build full Coding Mode toggle (shifts UI, distinct key mappings).
 3. Build logic to suppress generic English autocorrect when coding, loading custom tech-dictionary JSONs.
 
-### Phase 11: JS Sandbox Extensibility
+### Phase 12: JS Sandbox Extensibility
 1. Integrate QuickJS engine.
 2. Build utility toolbar UI mapping.
 3. Add base scripts (calc, base64, hash, formatters) with 1-second timeout limits.
 
-### Phase 12: Data Modals & Sync
+### Phase 13: Data Modals & Sync
 1. Build separate Modals (Notes, tasks, expenses, reminders) interacting with `Divided Library`.
 2. Construct shared storage JSON export/sync for PWA desktop mirroring.
 
-### Phase 13: Whisper Voice Integration
+### Phase 14: Whisper Voice Integration
 1. Integrate ~50MB Whisper on-device model.
 2. Trigger voice-to-text via dedicated long-press (remapping the Log Keeper trigger used in early phases back to its final state).
