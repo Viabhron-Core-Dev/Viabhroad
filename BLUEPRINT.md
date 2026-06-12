@@ -67,9 +67,9 @@ A strict logging system active from Phase 1.
 - [x] 3. Handle long-press UI adjustments (symbols, accents preview).
 
 ### Phase 6: Incognito & Context Handling
-1. Monitor `EditorInfo` flags to auto-detect passwords and sensitive fields.
-2. Build Incognito Mode (manual Toggle + auto-trigger).
-3. Wire Incognito to instantly disable dictionary learning and clipboard history.
+- [x] 1. Monitor `EditorInfo` flags to auto-detect passwords and sensitive fields.
+- [x] 2. Build Incognito Mode (manual Toggle + auto-trigger).
+- [x] 3. Wire Incognito to instantly disable dictionary learning and clipboard history.
 
 ### Phase 7: The Double Clipboard
 1. Regular Rolling Clipboard UI Modal & SQLite logic.

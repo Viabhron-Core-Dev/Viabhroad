@@ -131,6 +131,12 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         btnIncognito?.setOnClickListener {
             isManualIncognito = !isManualIncognito
             updateIncognitoStateUI()
+            
+            // Clear current/previous word on toggle to prevent leaking incognito words into normal dictionary
+            currentWord.clear()
+            previousWord = null
+            clearSuggestions()
+            
             val stateText = if (isIncognitoActive()) "Incognito Mode ON" else "Incognito Mode OFF"
             android.widget.Toast.makeText(this, stateText, android.widget.Toast.LENGTH_SHORT).show()
         }
