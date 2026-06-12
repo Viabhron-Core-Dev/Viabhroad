@@ -28,6 +28,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     
     private var isToolbarExpanded = false
     private var isAutocorrectEnabled = true
+    private var isManualIncognito = false
+    private var lastSpaceTime = 0L
     private var currentWord = StringBuilder()
     private var previousWord: String? = null
     private var currentSuggestions = emptyList<com.example.data.WordEntity>()
@@ -35,6 +37,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var tvSuggestion1: android.widget.TextView? = null
     private var tvSuggestion2: android.widget.TextView? = null
     private var tvSuggestion3: android.widget.TextView? = null
+    private var btnIncognito: android.widget.ImageButton? = null
+    private var toolbarContainer: android.view.View? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -90,6 +94,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         val btnClipboard = root.findViewById<android.widget.ImageButton>(R.id.btn_clipboard)
         val btnSettings = root.findViewById<android.widget.ImageButton>(R.id.btn_settings)
         
+        btnIncognito = root.findViewById(R.id.btn_incognito)
+        toolbarContainer = root.findViewById(R.id.toolbar_container)
+        
         tvSuggestion1 = root.findViewById(R.id.suggestion_1)
         tvSuggestion2 = root.findViewById(R.id.suggestion_2)
         tvSuggestion3 = root.findViewById(R.id.suggestion_3)
@@ -119,6 +126,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         btnClipboard.setOnClickListener {
             val inputConnection = currentInputConnection ?: return@setOnClickListener
             inputConnection.performContextMenuAction(android.R.id.paste)
+        }
+        
+        btnIncognito?.setOnClickListener {
+            isManualIncognito = !isManualIncognito
+            updateIncognitoStateUI()
+            val stateText = if (isIncognitoActive()) "Incognito Mode ON" else "Incognito Mode OFF"
+            android.widget.Toast.makeText(this, stateText, android.widget.Toast.LENGTH_SHORT).show()
         }
         
         // Toggle Autocorrect with Settings button temporarily
@@ -151,6 +165,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         previousWord = finalWord
         currentWord.clear()
         
+        if (isIncognitoActive()) {
+            updateSuggestions()
+            return
+        }
+        
         coroutineScope.launch {
             wordRepository.addWord(finalWord)
             prevToSave?.let { prev ->
@@ -165,6 +184,91 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         currentWord.clear()
         previousWord = null
         clearSuggestions()
+        updateIncognitoStateUI()
+    }
+
+    private fun isIncognitoActive(): Boolean {
+        return isManualIncognito || isSensitiveField(currentInputEditorInfo)
+    }
+
+    private fun isSensitiveField(info: EditorInfo?): Boolean {
+        if (info == null) return false
+        val inputType = info.inputType
+        val classType = inputType and android.text.InputType.TYPE_MASK_CLASS
+        val variation = inputType and android.text.InputType.TYPE_MASK_VARIATION
+        
+        // Password types check
+        if (classType == android.text.InputType.TYPE_CLASS_NUMBER && 
+            variation == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) {
+            return true
+        }
+        if (classType == android.text.InputType.TYPE_CLASS_TEXT && (
+            variation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+            variation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+            variation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+        )) {
+            return true
+        }
+        
+        // Check personalized learning flag in imeOptions (IME_FLAG_NO_PERSONALIZED_LEARNING = 0x1000000)
+        if (info.imeOptions and 0x1000000 != 0) {
+            return true
+        }
+        
+        // Check standard sensitive classifications like email
+        if (classType == android.text.InputType.TYPE_CLASS_TEXT && (
+            variation == android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
+            variation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS
+        )) {
+            return true
+        }
+        
+        return false
+    }
+
+    private fun updateIncognitoStateUI() {
+        val active = isIncognitoActive()
+        
+        // Update the toggle button icon
+        if (active) {
+            btnIncognito?.setImageResource(R.drawable.ic_incognito_on)
+            // Change toolbar background to deep private dark color
+            toolbarContainer?.setBackgroundColor(android.graphics.Color.parseColor("#202124"))
+            
+            // Set suggestions text color to white for contrast
+            tvSuggestion1?.setTextColor(android.graphics.Color.WHITE)
+            tvSuggestion2?.setTextColor(android.graphics.Color.WHITE)
+            tvSuggestion3?.setTextColor(android.graphics.Color.WHITE)
+            
+            // Set button icons to white tint
+            val whiteColor = android.graphics.Color.WHITE
+            mainView?.let { root ->
+                root.findViewById<android.widget.ImageButton>(R.id.btn_toolbar_chevron)?.setColorFilter(whiteColor)
+                root.findViewById<android.widget.ImageButton>(R.id.btn_select_all)?.setColorFilter(whiteColor)
+                root.findViewById<android.widget.ImageButton>(R.id.btn_clipboard)?.setColorFilter(whiteColor)
+                root.findViewById<android.widget.ImageButton>(R.id.btn_settings)?.setColorFilter(whiteColor)
+            }
+            btnIncognito?.setColorFilter(whiteColor)
+        } else {
+            btnIncognito?.setImageResource(R.drawable.ic_incognito_off)
+            // Reset toolbar background to standard light gray
+            toolbarContainer?.setBackgroundColor(android.graphics.Color.parseColor("#E8EAED"))
+            
+            // Reset suggestions text color to dark gray
+            val darkGray = android.graphics.Color.parseColor("#333333")
+            tvSuggestion1?.setTextColor(darkGray)
+            tvSuggestion2?.setTextColor(darkGray)
+            tvSuggestion3?.setTextColor(darkGray)
+            
+            // Reset button icons to dark gray tint
+            mainView?.let { root ->
+                root.findViewById<android.widget.ImageButton>(R.id.btn_toolbar_chevron)?.setColorFilter(darkGray)
+                root.findViewById<android.widget.ImageButton>(R.id.btn_select_all)?.setColorFilter(darkGray)
+                root.findViewById<android.widget.ImageButton>(R.id.btn_clipboard)?.setColorFilter(darkGray)
+                root.findViewById<android.widget.ImageButton>(R.id.btn_settings)?.setColorFilter(darkGray)
+            }
+            btnIncognito?.setColorFilter(darkGray)
+        }
     }
 
     override fun onComputeInsets(outInsets: Insets) {
@@ -264,6 +368,17 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 }
             }
             "SPACE" -> {
+                val now = System.currentTimeMillis()
+                val textBeforeCursor = inputConnection.getTextBeforeCursor(2, 0) ?: ""
+                
+                if (now - lastSpaceTime < 500 && currentWord.isEmpty() && textBeforeCursor.endsWith(" ")) {
+                    // Double space detected! Replace previous space with period and space
+                    inputConnection.deleteSurroundingText(1, 0)
+                    inputConnection.commitText(". ", 1)
+                    lastSpaceTime = 0L
+                    return
+                }
+
                 if (isAutocorrectEnabled && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].word != currentWord.toString().lowercase()) {
                     val topWordText = currentSuggestions[0].word
                     val isCapitalized = currentWord[0].isUpperCase()
@@ -275,11 +390,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                     inputConnection.deleteSurroundingText(currentWord.length, 0)
                     inputConnection.commitText(topWord + " ", 1)
                     commitWord(topWordText)
+                    lastSpaceTime = now
                 } else {
                     inputConnection.commitText(" ", 1)
                     if (currentWord.isNotEmpty()) {
                         commitWord(currentWord.toString())
                     }
+                    lastSpaceTime = now
                 }
             }
             "ENTER" -> {

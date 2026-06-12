@@ -206,7 +206,10 @@ class KeyboardView @JvmOverloads constructor(
                 if (startX + totalWidth > width) startX = width - totalWidth - 10f
                 
                 // make it pop up slightly above the key
-                val popupY = key.y - popupItemHeight - 20f
+                var popupY = key.y - popupItemHeight - 20f
+                if (popupY < 10f) {
+                    popupY = 10f // avoid clipping at the top
+                }
                 
                 accentPopupRect = RectF(startX, popupY, startX + totalWidth, popupY + popupItemHeight)
                 
