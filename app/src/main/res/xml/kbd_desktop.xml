@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Keyboard>
+    <Row>
+        <Key codes="ESC" label="ESC" weight="1.5" isFunctional="true" />
+        <Key codes="TAB" label="TAB" weight="1.5" isFunctional="true" />
+        <Key codes="HOME" label="HOME" weight="1.5" isFunctional="true" />
+        <Key codes="END" label="END" weight="1.5" isFunctional="true" />
+    </Row>
+    <Row>
+        <Key codes="CTRL" label="CTRL" weight="1.5" isFunctional="true" />
+        <Key codes="ALT" label="ALT" weight="1.5" isFunctional="true" />
+        <Key codes="PGUP" label="PGUP" weight="1.5" isFunctional="true" />
+        <Key codes="PGDN" label="PGDN" weight="1.5" isFunctional="true" />
+    </Row>
+    <Row>
+        <Key codes="MODE_NAVIGATION" label="⇦" weight="1.5" isFunctional="true" />
+        <Key codes="UNDO" label="UNDO" weight="1.5" isFunctional="true" />
+        <Key codes="REDO" label="REDO" weight="1.5" isFunctional="true" />
+        <Key codes="DEL" label="⌫" weight="1.5" isFunctional="true" />
+    </Row>
+    <Row>
+        <Key codes="MODE_ALPHABET" label="ABC" weight="1.5" isFunctional="true" />
+        <Key codes="," label="," weight="1.0" />
+        <Key codes="SPACE" label=" " weight="4.0" />
+        <Key codes="ENTER" label="↵" weight="1.5" isFunctional="true" />
+    </Row>
+</Keyboard>

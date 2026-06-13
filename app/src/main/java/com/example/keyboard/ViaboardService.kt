@@ -75,6 +75,18 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         wordRepository = WordRepository(AppDatabase.getDatabase(this).wordDao())
     }
 
+    private fun switchKeyboardLayout(xmlResId: Int) {
+        val root = mainView ?: return
+        val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view) ?: return
+        val parser = KeyboardParser(this)
+        val keyboard = parser.parse(xmlResId)
+        keyboardView.setKeyboard(keyboard)
+        keyboardView.invalidate()
+        if (xmlResId == R.xml.kbd_qwerty) {
+            updateShiftState()
+        }
+    }
+
     override fun onCreateInputView(): View {
         val root = layoutInflater.inflate(R.layout.keyboard_view, null)
         mainView = root
@@ -463,7 +475,27 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                     ShiftState.CAPS_LOCK -> updateShiftState(ShiftState.LOWERCASE)
                 }
             }
-            "SYM" -> { /* TODO: Toggle states later */ }
+            "MODE_SYMBOLS" -> switchKeyboardLayout(R.xml.kbd_symbols)
+            "MODE_SYMBOLS_SHIFT" -> switchKeyboardLayout(R.xml.kbd_symbols_shift)
+            "MODE_ALPHABET" -> switchKeyboardLayout(R.xml.kbd_qwerty)
+            "MODE_NAVIGATION" -> switchKeyboardLayout(R.xml.kbd_navigation)
+            "MODE_DESKTOP" -> switchKeyboardLayout(R.xml.kbd_desktop)
+            "SELECT_ALL" -> inputConnection.performContextMenuAction(android.R.id.selectAll)
+            "COPY" -> inputConnection.performContextMenuAction(android.R.id.copy)
+            "PASTE" -> inputConnection.performContextMenuAction(android.R.id.paste)
+            "CUT" -> inputConnection.performContextMenuAction(android.R.id.cut)
+            "UNDO" -> inputConnection.performContextMenuAction(android.R.id.undo)
+            "REDO" -> inputConnection.performContextMenuAction(android.R.id.redo)
+            "DIR_UP" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_UP)
+            "DIR_DOWN" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+            "DIR_LEFT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
+            "DIR_RIGHT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+            "TAB" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_TAB)
+            "ESC" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_ESCAPE)
+            "HOME" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_MOVE_HOME)
+            "END" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_MOVE_END)
+            "PGUP" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_PAGE_UP)
+            "PGDN" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_PAGE_DOWN)
             else -> {
                 var finalKey = key
                 if (key.length == 1 && key[0].isLetter()) {

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Keyboard>
+    <Row>
+        <Key codes="SELECT_ALL" label="ALL" weight="1.5" isFunctional="true" />
+        <Key codes="DIR_UP" label="⬆" weight="1.5" isFunctional="true" />
+        <Key codes="COPY" label="COPY" weight="1.5" isFunctional="true" />
+    </Row>
+    <Row>
+        <Key codes="DIR_LEFT" label="⬅" weight="1.5" isFunctional="true" />
+        <Key codes="DIR_DOWN" label="⬇" weight="1.5" isFunctional="true" />
+        <Key codes="DIR_RIGHT" label="➡" weight="1.5" isFunctional="true" />
+    </Row>
+    <Row>
+        <Key codes="MODE_DESKTOP" label="PC" weight="1.5" isFunctional="true" />
+        <Key codes="PASTE" label="PASTE" weight="1.5" isFunctional="true" />
+        <Key codes="DEL" label="⌫" weight="1.5" isFunctional="true" />
+    </Row>
+    <Row>
+        <Key codes="MODE_ALPHABET" label="ABC" weight="1.5" isFunctional="true" />
+        <Key codes="CUT" label="CUT" weight="1.0" isFunctional="true" />
+        <Key codes="SPACE" label=" " weight="4.0" />
+        <Key codes="ENTER" label="↵" weight="1.5" isFunctional="true" />
+    </Row>
+</Keyboard>

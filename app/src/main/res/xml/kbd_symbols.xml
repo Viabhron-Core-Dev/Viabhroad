@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Keyboard>
+    <Row>
+        <Key codes="1" label="1" />
+        <Key codes="2" label="2" />
+        <Key codes="3" label="3" />
+        <Key codes="4" label="4" />
+        <Key codes="5" label="5" />
+        <Key codes="6" label="6" />
+        <Key codes="7" label="7" />
+        <Key codes="8" label="8" />
+        <Key codes="9" label="9" />
+        <Key codes="0" label="0" />
+    </Row>
+    <Row>
+        <Key codes="@" label="@" />
+        <Key codes="#" label="#" />
+        <Key codes="$" label="$" />
+        <Key codes="_" label="_" />
+        <Key codes="&amp;" label="&amp;" /> <!-- Needs escaping in XML -->
+        <Key codes="-" label="-" />
+        <Key codes="+" label="+" />
+        <Key codes="(" label="(" />
+        <Key codes=")" label=")" />
+        <Key codes="/" label="/" />
+    </Row>
+    <Row>
+        <Key codes="MODE_SYMBOLS_SHIFT" label="=\&lt;" weight="1.5" isFunctional="true" />
+        <Key codes="*" label="*" />
+        <Key codes="&quot;" label="&quot;" />
+        <Key codes="'" label="'" />
+        <Key codes=":" label=":" />
+        <Key codes=";" label=";" />
+        <Key codes="!" label="!" />
+        <Key codes="?" label="?" />
+        <Key codes="DEL" label="⌫" weight="1.5" isFunctional="true" />
+    </Row>
+    <Row>
+        <Key codes="MODE_ALPHABET" label="ABC" weight="1.5" isFunctional="true" />
+        <Key codes="," label="," weight="1.0" />
+        <Key codes="SPACE" label=" " weight="4.0" />
+        <Key codes="." label="." weight="1.0" />
+        <Key codes="ENTER" label="↵" weight="1.5" isFunctional="true" />
+    </Row>
+</Keyboard>
