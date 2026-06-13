@@ -205,11 +205,24 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+
+        // Select initial layout based on input type
+        val inputType = info?.inputType ?: android.text.InputType.TYPE_CLASS_TEXT
+        when (inputType and android.text.InputType.TYPE_MASK_CLASS) {
+            android.text.InputType.TYPE_CLASS_NUMBER,
+            android.text.InputType.TYPE_CLASS_DATETIME,
+            android.text.InputType.TYPE_CLASS_PHONE -> {
+                switchKeyboardLayout(R.xml.kbd_numpad)
+            }
+            else -> {
+                switchKeyboardLayout(R.xml.kbd_qwerty)
+            }
+        }
+
         currentWord.clear()
         previousWord = null
         clearSuggestions()
         updateIncognitoStateUI()
-        updateShiftState()
     }
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {

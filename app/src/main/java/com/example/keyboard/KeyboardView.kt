@@ -70,6 +70,9 @@ class KeyboardView @JvmOverloads constructor(
 
     fun setKeyboard(kbd: Keyboard) {
         this.keyboard = kbd
+        if (width > 0 && height > 0) {
+            calculateKeyRects(width, height)
+        }
         requestLayout()
         invalidate()
     }
