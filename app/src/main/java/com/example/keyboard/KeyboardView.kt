@@ -149,13 +149,27 @@ class KeyboardView @JvmOverloads constructor(
                 }
 
                 val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
-                canvas.drawText(option, rect.centerX(), textY, textPaint)
+                canvas.drawText(getLabelForAccentCode(option), rect.centerX(), textY, textPaint)
             }
         }
     }
 
     private var pressedKey: Key? = null
     private var isPressedValid = false
+
+    private fun getLabelForAccentCode(code: String): String {
+        return when (code) {
+            "MODE_NUMPAD" -> "123"
+            "MODE_EMOJI" -> "🙂"
+            "MODE_NAVIGATION" -> "⇦"
+            "MODE_DESKTOP" -> "PC"
+            "MODE_SYMBOLS_SHIFT" -> "=\\<"
+            "SETTINGS" -> "⚙️"
+            "ONE_HAND" -> "🗗"
+            "CLIPBOARD" -> "📋"
+            else -> code
+        }
+    }
 
     private fun getAccentsForKey(key: String): List<String> {
         return when (key.lowercase()) {
@@ -175,6 +189,9 @@ class KeyboardView @JvmOverloads constructor(
             "p" -> listOf("p", "0", "*")
             "!" -> listOf("!", "¡")
             "?" -> listOf("?", "¿")
+            "mode_symbols" -> listOf("MODE_NUMPAD", "MODE_EMOJI", "MODE_NAVIGATION", "MODE_SYMBOLS_SHIFT", "MODE_DESKTOP")
+            "." -> listOf("&", "%", "+", "\"", "-", ":", "'", "@", ";", "/", "(", ")", "#", "!", ",", "?", "]", "[")
+            "," -> listOf("ONE_HAND", "SETTINGS", "CLIPBOARD")
             else -> emptyList()
         }
     }
@@ -205,30 +222,37 @@ class KeyboardView @JvmOverloads constructor(
                 accentOptions = options
                 hoveredAccentIndex = -1
                 
-                val popupItemWidth = key.width * 1.5f
+                val maxCols = 8
+                val cols = if (options.size > maxCols) maxCols else options.size
+                val rows = (options.size + cols - 1) / cols
+                
+                val popupItemWidth = key.width * 1.2f
                 val popupItemHeight = key.height * 1.5f
                 
-                val totalWidth = popupItemWidth * options.size
+                val totalWidth = popupItemWidth * cols
+                val totalHeight = popupItemHeight * rows
                 
                 var startX = key.x + (key.width / 2) - (totalWidth / 2)
                 if (startX < 0) startX = 10f
                 if (startX + totalWidth > width) startX = width - totalWidth - 10f
                 
                 // make it pop up slightly above the key
-                var popupY = key.y - popupItemHeight - 20f
+                var popupY = key.y - totalHeight - 20f
                 if (popupY < 10f) {
                     popupY = 10f // avoid clipping at the top
                 }
                 
-                accentPopupRect = RectF(startX, popupY, startX + totalWidth, popupY + popupItemHeight)
+                accentPopupRect = RectF(startX, popupY, startX + totalWidth, popupY + totalHeight)
                 
                 accentOptionRects.clear()
-                var currentX = startX
-                for (opt in options) {
+                for ((i, opt) in options.withIndex()) {
+                    val row = i / cols
+                    val col = i % cols
+                    val currentX = startX + col * popupItemWidth
+                    val currentY = popupY + row * popupItemHeight
                     accentOptionRects.add(
-                        Pair(opt, RectF(currentX, popupY, currentX + popupItemWidth, popupY + popupItemHeight))
+                        Pair(opt, RectF(currentX, currentY, currentX + popupItemWidth, currentY + popupItemHeight))
                     )
-                    currentX += popupItemWidth
                 }
                 invalidate()
             }

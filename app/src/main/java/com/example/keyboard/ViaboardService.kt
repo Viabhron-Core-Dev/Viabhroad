@@ -493,6 +493,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "MODE_ALPHABET" -> switchKeyboardLayout(R.xml.kbd_qwerty)
             "MODE_NAVIGATION" -> switchKeyboardLayout(R.xml.kbd_navigation)
             "MODE_DESKTOP" -> switchKeyboardLayout(R.xml.kbd_desktop)
+            "MODE_NUMPAD" -> switchKeyboardLayout(R.xml.kbd_numpad)
+            "MODE_EMOJI" -> { /* TODO */ }
+            "SETTINGS" -> { /* TODO */ }
+            "ONE_HAND" -> { /* TODO */ }
+            "CLIPBOARD" -> { /* TODO */ }
             "SELECT_ALL" -> inputConnection.performContextMenuAction(android.R.id.selectAll)
             "COPY" -> inputConnection.performContextMenuAction(android.R.id.copy)
             "PASTE" -> inputConnection.performContextMenuAction(android.R.id.paste)
