@@ -64,6 +64,12 @@ class KeyboardView @JvmOverloads constructor(
         color = Color.LTGRAY
     }
 
+    private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#777777")
+        textAlign = Paint.Align.RIGHT
+        textSize = 26f
+    }
+
     private val keyMarginHorizontal = 8f
     private val keyMarginVertical = 10f
     private val cornerRadius = 14f
@@ -133,6 +139,19 @@ class KeyboardView @JvmOverloads constructor(
                 // Draw text
                 val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
                 canvas.drawText(key.label, rect.centerX(), textY, textPaint)
+                
+                // Draw hint
+                if (key.codes.length == 1 && key.label.length == 1) {
+                    val hints = getAccentsForKey(key.codes)
+                    if (hints.size > 1) {
+                        val hintChar = hints[1]
+                        if (hintChar != key.codes && hintChar.length == 1) {
+                            val hintX = rect.right - 12f
+                            val hintY = rect.top + 32f
+                            canvas.drawText(hintChar, hintX, hintY, hintPaint)
+                        }
+                    }
+                }
             }
         }
 
@@ -173,20 +192,32 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun getAccentsForKey(key: String): List<String> {
         return when (key.lowercase()) {
-            "a" -> listOf("a", "á", "à", "â")
-            "e" -> listOf("e", "é", "3", "è", "ê")
-            "i" -> listOf("i", "í", "8", "ì", "î")
-            "o" -> listOf("o", "ó", "9", "ò", "ô")
-            "u" -> listOf("u", "ú", "7", "ù", "û")
-            "c" -> listOf("c", "ç", "ć", "č")
-            "n" -> listOf("n", "ñ", "ń", "ň")
-            "s" -> listOf("s", "ß", "ś", "š")
             "q" -> listOf("q", "1", "!")
             "w" -> listOf("w", "2", "@")
+            "e" -> listOf("e", "3", "é", "è", "ê")
             "r" -> listOf("r", "4", "#")
             "t" -> listOf("t", "5", "%")
             "y" -> listOf("y", "6", "^")
+            "u" -> listOf("u", "7", "ú", "ù", "û")
+            "i" -> listOf("i", "8", "í", "ì", "î")
+            "o" -> listOf("o", "9", "ó", "ò", "ô")
             "p" -> listOf("p", "0", "*")
+            "a" -> listOf("a", "@", "á", "à", "â")
+            "s" -> listOf("s", "#", "ß", "ś", "š")
+            "d" -> listOf("d", "$")
+            "f" -> listOf("f", "%")
+            "g" -> listOf("g", "&")
+            "h" -> listOf("h", "-")
+            "j" -> listOf("j", "+")
+            "k" -> listOf("k", "(")
+            "l" -> listOf("l", ")")
+            "z" -> listOf("z", "*")
+            "x" -> listOf("x", "\"")
+            "c" -> listOf("c", "'", "ç", "ć", "č")
+            "v" -> listOf("v", ":")
+            "b" -> listOf("b", ";")
+            "n" -> listOf("n", "!", "ñ", "ń", "ň")
+            "m" -> listOf("m", "?")
             "!" -> listOf("!", "¡")
             "?" -> listOf("?", "¿")
             "mode_symbols" -> listOf("MODE_NUMPAD", "MODE_EMOJI", "MODE_NAVIGATION", "MODE_SYMBOLS_SHIFT", "MODE_DESKTOP")
@@ -222,12 +253,13 @@ class KeyboardView @JvmOverloads constructor(
                 accentOptions = options
                 hoveredAccentIndex = -1
                 
-                val maxCols = 8
+                val maxCols = 6
                 val cols = if (options.size > maxCols) maxCols else options.size
                 val rows = (options.size + cols - 1) / cols
                 
-                val popupItemWidth = key.width * 1.2f
-                val popupItemHeight = key.height * 1.5f
+                val defaultKeyWidth = width / 10f
+                val popupItemWidth = defaultKeyWidth * 0.95f
+                val popupItemHeight = key.height * 1.15f
                 
                 val totalWidth = popupItemWidth * cols
                 val totalHeight = popupItemHeight * rows
