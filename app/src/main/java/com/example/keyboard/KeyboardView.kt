@@ -67,7 +67,7 @@ class KeyboardView @JvmOverloads constructor(
     private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#777777")
         textAlign = Paint.Align.RIGHT
-        textSize = 26f
+        textSize = 18f
     }
 
     private val keyMarginHorizontal = 8f
@@ -143,11 +143,11 @@ class KeyboardView @JvmOverloads constructor(
                 // Draw hint
                 if (key.codes.length == 1 && key.label.length == 1) {
                     val hints = getAccentsForKey(key.codes)
-                    if (hints.size > 1) {
-                        val hintChar = hints[1]
-                        if (hintChar != key.codes && hintChar.length == 1) {
-                            val hintX = rect.right - 12f
-                            val hintY = rect.top + 32f
+                    if (hints.isNotEmpty()) {
+                        val hintChar = hints[0]
+                        if (hintChar.length == 1) {
+                            val hintX = rect.right - 10f
+                            val hintY = rect.top + 28f
                             canvas.drawText(hintChar, hintX, hintY, hintPaint)
                         }
                     }
@@ -192,34 +192,44 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun getAccentsForKey(key: String): List<String> {
         return when (key.lowercase()) {
-            "q" -> listOf("q", "1", "!")
-            "w" -> listOf("w", "2", "@")
-            "e" -> listOf("e", "3", "é", "è", "ê")
-            "r" -> listOf("r", "4", "#")
-            "t" -> listOf("t", "5", "%")
-            "y" -> listOf("y", "6", "^")
-            "u" -> listOf("u", "7", "ú", "ù", "û")
-            "i" -> listOf("i", "8", "í", "ì", "î")
-            "o" -> listOf("o", "9", "ó", "ò", "ô")
-            "p" -> listOf("p", "0", "*")
-            "a" -> listOf("a", "@", "á", "à", "â")
-            "s" -> listOf("s", "#", "ß", "ś", "š")
-            "d" -> listOf("d", "$")
-            "f" -> listOf("f", "%")
-            "g" -> listOf("g", "&")
-            "h" -> listOf("h", "-")
-            "j" -> listOf("j", "+")
-            "k" -> listOf("k", "(")
-            "l" -> listOf("l", ")")
-            "z" -> listOf("z", "*")
-            "x" -> listOf("x", "\"")
-            "c" -> listOf("c", "'", "ç", "ć", "č")
-            "v" -> listOf("v", ":")
-            "b" -> listOf("b", ";")
-            "n" -> listOf("n", "!", "ñ", "ń", "ň")
-            "m" -> listOf("m", "?")
-            "!" -> listOf("!", "¡")
-            "?" -> listOf("?", "¿")
+            "q" -> listOf("1")
+            "w" -> listOf("2")
+            "e" -> listOf("3", "é", "è", "ê")
+            "r" -> listOf("4")
+            "t" -> listOf("5")
+            "y" -> listOf("6")
+            "u" -> listOf("7", "ú", "ù", "û")
+            "i" -> listOf("8", "í", "ì", "î")
+            "o" -> listOf("9", "ó", "ò", "ô")
+            "p" -> listOf("0")
+            "a" -> listOf("@", "á", "à", "â")
+            "s" -> listOf("#", "ß", "ś", "š")
+            "d" -> listOf("₹", "$", "¢", "€", "£", "¥")
+            "f" -> listOf("_")
+            "g" -> listOf("&")
+            "h" -> listOf("-")
+            "j" -> listOf("+")
+            "k" -> listOf("(")
+            "l" -> listOf(")")
+            "z" -> listOf("*")
+            "x" -> listOf("\"")
+            "c" -> listOf("'", "ç", "ć", "č")
+            "v" -> listOf(":")
+            "b" -> listOf(";")
+            "n" -> listOf("!", "ñ", "ń", "ň")
+            "m" -> listOf("?")
+            "1" -> listOf("¹", "½", "⅓", "¼", "⅛")
+            "2" -> listOf("²", "⅔")
+            "3" -> listOf("³", "¾", "⅜")
+            "4" -> listOf("⁴")
+            "5" -> listOf("⁵", "⅝")
+            "6" -> listOf("⁶")
+            "7" -> listOf("⁷", "⅞")
+            "8" -> listOf("⁸")
+            "9" -> listOf("⁹")
+            "0" -> listOf("ⁿ", "∅")
+            "!" -> listOf("¡")
+            "?" -> listOf("¿")
             "mode_symbols" -> listOf("MODE_NUMPAD", "MODE_EMOJI", "MODE_NAVIGATION", "MODE_SYMBOLS_SHIFT", "MODE_DESKTOP")
             "." -> listOf("&", "%", "+", "\"", "-", ":", "'", "@", ";", "/", "(", ")", "#", "!", ",", "?", "]", "[")
             "," -> listOf("ONE_HAND", "SETTINGS", "CLIPBOARD")
