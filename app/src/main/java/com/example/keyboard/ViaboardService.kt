@@ -11,6 +11,17 @@ import com.example.logkeeper.TheLogKeeper
 import com.example.R
 import com.example.data.AppDatabase
 import com.example.data.WordRepository
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,7 +29,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 
-class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
+class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    private val store = ViewModelStore()
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+
+    override val lifecycle: Lifecycle get() = lifecycleRegistry
+    override val viewModelStore: ViewModelStore get() = store
+    override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+
     private lateinit var logKeeper: TheLogKeeper
     private var mainView: View? = null
     
@@ -47,6 +66,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var toolbarContainer: android.view.View? = null
 
     override fun onCreate() {
+        savedStateRegistryController.performRestore(null)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         super.onCreate()
         
         // Trap all fatals and ensure they go to LogKeeper before the process dies
@@ -94,6 +115,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
 
     override fun onCreateInputView(): View {
         val root = layoutInflater.inflate(R.layout.keyboard_view, null)
+        
+        root.setViewTreeLifecycleOwner(this)
+        root.setViewTreeViewModelStoreOwner(this)
+        root.setViewTreeSavedStateRegistryOwner(this)
+        
         mainView = root
         
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view)
@@ -428,8 +454,22 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         super.onFinishInputView(finishingInput)
     }
 
+    override fun onWindowShown() {
+        super.onWindowShown()
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    }
+
+    override fun onWindowHidden() {
+        super.onWindowHidden()
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        store.clear()
         coroutineScope.launch {
              // cancel all in scope
         } // or just let it die. It's tied to service lifecycle.
