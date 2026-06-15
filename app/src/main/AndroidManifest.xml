@@ -23,6 +23,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name="com.example.keyboard.SettingsActivity"
+            android:exported="false"
+            android:label="Settings"
+            android:theme="@style/Theme.MyApplication" />
+
         <service
             android:name="com.example.keyboard.ViaboardService"
             android:label="Viaboard Keyboard"

@@ -18,6 +18,7 @@ class KeyboardView @JvmOverloads constructor(
         fun onLongPressKey(key: String, keyRect: RectF, keyboardView: View)
         fun onLongPressEnter()
         fun onLongPressBackspace()
+        fun onSwipeCursor(dx: Int)
     }
 
     var listener: KeyboardListener? = null
@@ -67,7 +68,8 @@ class KeyboardView @JvmOverloads constructor(
     private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#777777")
         textAlign = Paint.Align.RIGHT
-        textSize = 18f
+        textSize = 16f
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
 
     private val keyMarginHorizontal = 8f
@@ -175,6 +177,10 @@ class KeyboardView @JvmOverloads constructor(
 
     private var pressedKey: Key? = null
     private var isPressedValid = false
+    private var isSpaceScrubbing = false
+    private var swipeStartX = 0f
+    private var lastScrubCursorDiff = 0
+    private val scrubThreshold = 30f
 
     private fun getLabelForAccentCode(code: String): String {
         return when (code) {
@@ -311,6 +317,9 @@ class KeyboardView @JvmOverloads constructor(
                 if (key != null && key.codes.isNotEmpty()) {
                     pressedKey = key
                     isPressedValid = true
+                    swipeStartX = x
+                    lastScrubCursorDiff = 0
+                    isSpaceScrubbing = false
                     handler.postDelayed(longPressRunnable, 400)
                     invalidate()
                 }
@@ -330,9 +339,26 @@ class KeyboardView @JvmOverloads constructor(
                     }
                     invalidate()
                 } else if (isPressedValid) {
-                    // Check if finger moved too far from the key
                     val key = pressedKey
-                    if (key != null) {
+                    if (key != null && key.codes == "SPACE") {
+                        val dx = x - swipeStartX
+                        val diff = (dx / scrubThreshold).toInt()
+                        if (kotlin.math.abs(dx) > scrubThreshold) {
+                            if (!isSpaceScrubbing) {
+                                isSpaceScrubbing = true
+                                handler.removeCallbacks(longPressRunnable)
+                            }
+                            if (diff != lastScrubCursorDiff) {
+                                val moveDiff = diff - lastScrubCursorDiff
+                                listener?.onSwipeCursor(moveDiff)
+                                lastScrubCursorDiff = diff
+                            }
+                            return true
+                        }
+                    }
+
+                    // Check if finger moved too far from the key
+                    if (!isSpaceScrubbing && key != null) {
                         val rect = RectF(key.x, key.y, key.x + key.width, key.y + key.height)
                         // If moved significantly out of bounds, cancel long press
                         if (!rect.contains(x, y)) {
@@ -355,11 +381,14 @@ class KeyboardView @JvmOverloads constructor(
                     isAccentPopupVisible = false
                     hoveredAccentIndex = -1
                 } else if (isPressedValid && pressedKey != null) {
-                    pressedKey?.codes?.let { listener?.onKeyPress(it) }
+                    if (!isSpaceScrubbing) {
+                        pressedKey?.codes?.let { listener?.onKeyPress(it) }
+                    }
                 }
                 
                 pressedKey = null
                 isPressedValid = false
+                isSpaceScrubbing = false
                 invalidate()
                 return true
             }
@@ -368,6 +397,7 @@ class KeyboardView @JvmOverloads constructor(
                 isAccentPopupVisible = false
                 pressedKey = null
                 isPressedValid = false
+                isSpaceScrubbing = false
                 invalidate()
                 return true
             }

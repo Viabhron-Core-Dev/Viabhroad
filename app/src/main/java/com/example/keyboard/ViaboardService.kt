@@ -78,6 +78,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private fun switchKeyboardLayout(xmlResId: Int) {
         val root = mainView ?: return
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view) ?: return
+        val emojiComposeView = root.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.emoji_compose_view) ?: return
+        
+        keyboardView.visibility = View.VISIBLE
+        emojiComposeView.visibility = View.GONE
+        
         val parser = KeyboardParser(this)
         val keyboard = parser.parse(xmlResId)
         keyboardView.setKeyboard(keyboard)
@@ -94,6 +99,21 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view)
         keyboardView.listener = this
         
+        val emojiComposeView = root.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.emoji_compose_view)
+        emojiComposeView.setContent {
+            com.example.keyboard.EmojiKeyboard(
+                onEmojiClick = { emoji ->
+                    currentInputConnection?.commitText(emoji, 1)
+                },
+                onBackClick = {
+                    switchKeyboardLayout(R.xml.kbd_qwerty)
+                },
+                onDeleteClick = {
+                    sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
+                }
+            )
+        }
+        
         // Parse and set the XML layout
         val parser = KeyboardParser(this)
         val keyboard = parser.parse(R.xml.kbd_qwerty)
@@ -107,12 +127,10 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private fun setupToolbar(root: View) {
         val btnChevron = root.findViewById<android.widget.ImageButton>(R.id.btn_toolbar_chevron)
         val suggestionContent = root.findViewById<android.view.View>(R.id.suggestion_content)
-        val expandedContent = root.findViewById<android.view.View>(R.id.toolbar_expanded_content)
-        val btnSelectAll = root.findViewById<android.widget.ImageButton>(R.id.btn_select_all)
-        val btnClipboard = root.findViewById<android.widget.ImageButton>(R.id.btn_clipboard)
-        val btnSettings = root.findViewById<android.widget.ImageButton>(R.id.btn_settings)
+        val expandedScroll = root.findViewById<android.view.View>(R.id.toolbar_expanded_scroll)
+        val expandedContent = root.findViewById<android.widget.LinearLayout>(R.id.toolbar_expanded_content)
+        val pinnedContent = root.findViewById<android.widget.LinearLayout>(R.id.toolbar_pinned)
         
-        btnIncognito = root.findViewById(R.id.btn_incognito)
         toolbarContainer = root.findViewById(R.id.toolbar_container)
         
         tvSuggestion1 = root.findViewById(R.id.suggestion_1)
@@ -128,42 +146,103 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             if (isToolbarExpanded) {
                 btnChevron.setImageResource(R.drawable.ic_chevron_left)
                 suggestionContent.visibility = View.GONE
-                expandedContent.visibility = View.VISIBLE
+                expandedScroll.visibility = View.VISIBLE
             } else {
                 btnChevron.setImageResource(R.drawable.ic_chevron_right)
                 suggestionContent.visibility = View.VISIBLE
-                expandedContent.visibility = View.GONE
+                expandedScroll.visibility = View.GONE
             }
         }
         
-        btnSelectAll.setOnClickListener {
-            val inputConnection = currentInputConnection ?: return@setOnClickListener
-            inputConnection.performContextMenuAction(android.R.id.selectAll)
-        }
+        populateToolbar(root, expandedContent, pinnedContent)
+    }
+
+    private fun populateToolbar(root: View, expandedContent: android.widget.LinearLayout, pinnedContent: android.widget.LinearLayout) {
+        expandedContent.removeAllViews()
+        pinnedContent.removeAllViews()
         
-        btnClipboard.setOnClickListener {
-            val inputConnection = currentInputConnection ?: return@setOnClickListener
-            inputConnection.performContextMenuAction(android.R.id.paste)
-        }
+        val context = expandedContent.context
+        val pinnedKeys = com.example.keyboard.toolbar.ToolbarSettingsManager.getPinnedKeys(context)
+        val expandedKeys = com.example.keyboard.toolbar.ToolbarSettingsManager.getToolbarKeys(context)
         
-        btnIncognito?.setOnClickListener {
-            isManualIncognito = !isManualIncognito
-            updateIncognitoStateUI()
+        btnIncognito = null // Reset ref
+        
+        val buttonSize = (40 * context.resources.displayMetrics.density).toInt()
+        val marginEnd = (4 * context.resources.displayMetrics.density).toInt()
+        
+        fun createButton(actionId: String): android.widget.ImageButton? {
+            val action = com.example.keyboard.toolbar.ToolbarSettingsManager.ALL_ACTIONS.find { it.id == actionId } ?: return null
+            val btn = android.widget.ImageButton(context)
+            val params = android.widget.LinearLayout.LayoutParams(buttonSize, buttonSize)
+            params.marginEnd = marginEnd
+            btn.layoutParams = params
             
-            // Clear current/previous word on toggle to prevent leaking incognito words into normal dictionary
-            currentWord.clear()
-            previousWord = null
-            clearSuggestions()
+            // Set simple transparent background
+            val typedValue = android.util.TypedValue()
+            context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, typedValue, true)
+            btn.setBackgroundResource(typedValue.resourceId)
+            btn.contentDescription = action.name
             
-            val stateText = if (isIncognitoActive()) "Incognito Mode ON" else "Incognito Mode OFF"
-            android.widget.Toast.makeText(this, stateText, android.widget.Toast.LENGTH_SHORT).show()
+            // Map icon
+            val resId = when(actionId) {
+                "SETTINGS" -> R.drawable.ic_settings
+                "SELECT_ALL" -> R.drawable.ic_select_all
+                "CLIPBOARD", "PASTE" -> R.drawable.ic_clipboard
+                "COPY" -> R.drawable.ic_copy
+                "CUT" -> R.drawable.ic_cut
+                "INCOGNITO" -> R.drawable.ic_incognito_off
+                "LEFT" -> R.drawable.ic_chevron_left
+                "RIGHT" -> R.drawable.ic_chevron_right
+                else -> R.drawable.ic_settings // Placeholder for missing icons
+            }
+            btn.setImageResource(resId)
+            
+            // Register specific references
+            if (actionId == "INCOGNITO") {
+                btnIncognito = btn
+                if (isManualIncognito || (currentInputEditorInfo?.imeOptions?.and(android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0)) {
+                    btn.setImageResource(R.drawable.ic_incognito_on)
+                }
+            }
+            
+            btn.setOnClickListener { handleToolbarAction(actionId) }
+            return btn
         }
         
-        // Toggle Autocorrect with Settings button temporarily
-        btnSettings.setOnClickListener {
-            isAutocorrectEnabled = !isAutocorrectEnabled
-            val stateText = if (isAutocorrectEnabled) "Autocorrect ON" else "Autocorrect OFF"
-            android.widget.Toast.makeText(this, stateText, android.widget.Toast.LENGTH_SHORT).show()
+        expandedKeys.forEach { actionId ->
+            createButton(actionId)?.let { expandedContent.addView(it) }
+        }
+        
+        pinnedKeys.forEach { actionId ->
+            createButton(actionId)?.let { pinnedContent.addView(it) }
+        }
+    }
+    
+    private fun handleToolbarAction(actionId: String) {
+        when (actionId) {
+            "SETTINGS" -> {
+                val intent = android.content.Intent(this, com.example.keyboard.SettingsActivity::class.java).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+            }
+            "SELECT_ALL" -> currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
+            "CLIPBOARD", "PASTE" -> currentInputConnection?.performContextMenuAction(android.R.id.paste)
+            "COPY" -> currentInputConnection?.performContextMenuAction(android.R.id.copy)
+            "CUT" -> currentInputConnection?.performContextMenuAction(android.R.id.cut)
+            "LEFT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
+            "RIGHT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+            "UP" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_UP)
+            "DOWN" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+            "INCOGNITO" -> {
+                isManualIncognito = !isManualIncognito
+                updateIncognitoStateUI()
+                currentWord.clear()
+                previousWord = null
+                clearSuggestions()
+                val stateText = if (isIncognitoActive()) "Incognito Mode ON" else "Incognito Mode OFF"
+                android.widget.Toast.makeText(this, stateText, android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -205,6 +284,15 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+
+        // Refresh Toolbar configuration to catch Settings changes
+        mainView?.let { root ->
+            val expandedContent = root.findViewById<android.widget.LinearLayout>(R.id.toolbar_expanded_content)
+            val pinnedContent = root.findViewById<android.widget.LinearLayout>(R.id.toolbar_pinned)
+            if (expandedContent != null && pinnedContent != null) {
+                populateToolbar(root, expandedContent, pinnedContent)
+            }
+        }
 
         // Select initial layout based on input type
         val inputType = info?.inputType ?: android.text.InputType.TYPE_CLASS_TEXT
@@ -287,9 +375,16 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             val whiteColor = android.graphics.Color.WHITE
             mainView?.let { root ->
                 root.findViewById<android.widget.ImageButton>(R.id.btn_toolbar_chevron)?.setColorFilter(whiteColor)
-                root.findViewById<android.widget.ImageButton>(R.id.btn_select_all)?.setColorFilter(whiteColor)
-                root.findViewById<android.widget.ImageButton>(R.id.btn_clipboard)?.setColorFilter(whiteColor)
-                root.findViewById<android.widget.ImageButton>(R.id.btn_settings)?.setColorFilter(whiteColor)
+                
+                val expandedContent = root.findViewById<android.widget.LinearLayout>(R.id.toolbar_expanded_content)
+                val pinnedContent = root.findViewById<android.widget.LinearLayout>(R.id.toolbar_pinned)
+                
+                for (i in 0 until (expandedContent?.childCount ?: 0)) {
+                    (expandedContent?.getChildAt(i) as? android.widget.ImageButton)?.setColorFilter(whiteColor)
+                }
+                for (i in 0 until (pinnedContent?.childCount ?: 0)) {
+                    (pinnedContent?.getChildAt(i) as? android.widget.ImageButton)?.setColorFilter(whiteColor)
+                }
             }
             btnIncognito?.setColorFilter(whiteColor)
         } else {
@@ -306,9 +401,16 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             // Reset button icons to dark gray tint
             mainView?.let { root ->
                 root.findViewById<android.widget.ImageButton>(R.id.btn_toolbar_chevron)?.setColorFilter(darkGray)
-                root.findViewById<android.widget.ImageButton>(R.id.btn_select_all)?.setColorFilter(darkGray)
-                root.findViewById<android.widget.ImageButton>(R.id.btn_clipboard)?.setColorFilter(darkGray)
-                root.findViewById<android.widget.ImageButton>(R.id.btn_settings)?.setColorFilter(darkGray)
+                
+                val expandedContent = root.findViewById<android.widget.LinearLayout>(R.id.toolbar_expanded_content)
+                val pinnedContent = root.findViewById<android.widget.LinearLayout>(R.id.toolbar_pinned)
+                
+                for (i in 0 until (expandedContent?.childCount ?: 0)) {
+                    (expandedContent?.getChildAt(i) as? android.widget.ImageButton)?.setColorFilter(darkGray)
+                }
+                for (i in 0 until (pinnedContent?.childCount ?: 0)) {
+                    (pinnedContent?.getChildAt(i) as? android.widget.ImageButton)?.setColorFilter(darkGray)
+                }
             }
             btnIncognito?.setColorFilter(darkGray)
         }
@@ -494,8 +596,16 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "MODE_NAVIGATION" -> switchKeyboardLayout(R.xml.kbd_navigation)
             "MODE_DESKTOP" -> switchKeyboardLayout(R.xml.kbd_desktop)
             "MODE_NUMPAD" -> switchKeyboardLayout(R.xml.kbd_numpad)
-            "MODE_EMOJI" -> { /* TODO */ }
-            "SETTINGS" -> { /* TODO */ }
+            "MODE_EMOJI" -> {
+                mainView?.findViewById<KeyboardView>(R.id.keyboard_view)?.visibility = View.GONE
+                mainView?.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.emoji_compose_view)?.visibility = View.VISIBLE
+            }
+            "SETTINGS" -> {
+                val intent = android.content.Intent(this, SettingsActivity::class.java).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+            }
             "ONE_HAND" -> { /* TODO */ }
             "CLIPBOARD" -> { /* TODO */ }
             "SELECT_ALL" -> inputConnection.performContextMenuAction(android.R.id.selectAll)
@@ -556,6 +666,17 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             }
             if (deleteCount > 0) {
                 inputConnection.deleteSurroundingText(deleteCount, 0)
+            }
+        }
+    }
+
+    override fun onSwipeCursor(dx: Int) {
+        val count = kotlin.math.abs(dx)
+        for (i in 0 until count) {
+            if (dx > 0) {
+                sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+            } else if (dx < 0) {
+                sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
             }
         }
     }

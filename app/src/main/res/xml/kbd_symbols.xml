@@ -13,30 +13,28 @@
         <Key codes="0" label="0" />
     </Row>
     <Row>
-        <Key codes="%" label="%" />
-        <Key codes="/" label="/" />
+        <Key codes="~" label="~" />
+        <Key codes="`" label="`" />
         <Key codes="|" label="|" />
-        <Key codes="=" label="=" />
-        <Key codes="[" label="[" />
-        <Key codes="]" label="]" />
-        <Key codes="*" label="*" />
-        <Key codes="!" label="!" />
-        <Key codes="-" label="-" />
-        <Key codes=";" label=";" />
-        <Key codes="&quot;" label="&quot;" />
+        <Key codes="•" label="•" />
+        <Key codes="√" label="√" />
+        <Key codes="π" label="π" />
+        <Key codes="÷" label="÷" />
+        <Key codes="×" label="×" />
+        <Key codes="{" label="{" />
+        <Key codes="}" label="}" />
     </Row>
     <Row>
         <Key codes="@" label="@" />
         <Key codes="#" label="#" />
         <Key codes="$" label="$" />
-        <Key codes="_" label="_" />
+        <Key codes="%" label="%" />
         <Key codes="&amp;" label="&amp;" /> <!-- Needs escaping in XML -->
         <Key codes="-" label="-" />
         <Key codes="+" label="+" />
         <Key codes="(" label="(" />
         <Key codes=")" label=")" />
-        <Key codes="{" label="{" />
-        <Key codes="}" label="}" />
+        <Key codes="/" label="/" />
     </Row>
     <Row>
         <Key codes="MODE_SYMBOLS_SHIFT" label="=\&lt;" weight="1.5" isFunctional="true" />
@@ -47,7 +45,6 @@
         <Key codes=";" label=";" />
         <Key codes="!" label="!" />
         <Key codes="?" label="?" />
-        <Key codes=":" label=":" />
         <Key codes="DEL" label="⌫" weight="1.5" isFunctional="true" />
     </Row>
     <Row>

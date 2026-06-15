@@ -67,19 +67,32 @@ class TheLogKeeper private constructor(private val context: Context) {
                 
                 val filename = "Viaboard_Logs_${System.currentTimeMillis()}.txt"
                 val resolver = context.contentResolver
-                val contentValues = android.content.ContentValues().apply {
-                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
-                }
                 
-                // Using MediaStore for Android 10+ 
-                val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                if (uri != null) {
-                    resolver.openOutputStream(uri)?.use { os ->
-                        os.write(sb.toString().toByteArray())
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    val contentValues = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
                     }
                     
+                    // Using MediaStore for Android 10+ 
+                    val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                    if (uri != null) {
+                        resolver.openOutputStream(uri)?.use { os ->
+                            os.write(sb.toString().toByteArray())
+                        }
+                        
+                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                            android.widget.Toast.makeText(context, "Logs saved to Downloads folder", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    // Fallback for API < 29
+                    val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                    val file = java.io.File(downloadsDir, filename)
+                    java.io.FileOutputStream(file).use { os ->
+                        os.write(sb.toString().toByteArray())
+                    }
                     kotlinx.coroutines.withContext(Dispatchers.Main) {
                         android.widget.Toast.makeText(context, "Logs saved to Downloads folder", android.widget.Toast.LENGTH_LONG).show()
                     }
