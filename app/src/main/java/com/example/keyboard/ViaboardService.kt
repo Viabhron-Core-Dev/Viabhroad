@@ -11,17 +11,6 @@ import com.example.logkeeper.TheLogKeeper
 import com.example.R
 import com.example.data.AppDatabase
 import com.example.data.WordRepository
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import androidx.savedstate.SavedStateRegistry
-import androidx.savedstate.SavedStateRegistryController
-import androidx.savedstate.SavedStateRegistryOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,15 +18,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 
-class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
-    private val lifecycleRegistry = LifecycleRegistry(this)
-    private val store = ViewModelStore()
-    private val savedStateRegistryController = SavedStateRegistryController.create(this)
-
-    override val lifecycle: Lifecycle get() = lifecycleRegistry
-    override val viewModelStore: ViewModelStore get() = store
-    override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
-
+class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private lateinit var logKeeper: TheLogKeeper
     private var mainView: View? = null
     
@@ -64,10 +45,17 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
     private var tvSuggestion3: android.widget.TextView? = null
     private var btnIncognito: android.widget.ImageButton? = null
     private var toolbarContainer: android.view.View? = null
+    
+    // Clipboard feature
+    private var isClipboardModalOpen = false
+    private lateinit var clipboardRepository: ClipboardRepository
+    private var clipboardAdapter: ClipboardAdapter? = null
+    private var clipboardManager: android.content.ClipboardManager? = null
+    private val clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+        onPrimaryClipChanged()
+    }
 
     override fun onCreate() {
-        savedStateRegistryController.performRestore(null)
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         super.onCreate()
         
         // Trap all fatals and ensure they go to LogKeeper before the process dies
@@ -94,15 +82,14 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
         logKeeper.log("INFO", "ViaboardService", "Service Created (View-based)")
         
         wordRepository = WordRepository(AppDatabase.getDatabase(this).wordDao())
+        clipboardRepository = ClipboardRepository(ClipboardDatabase.getDatabase(this).clipboardDao())
     }
 
     private fun switchKeyboardLayout(xmlResId: Int) {
         val root = mainView ?: return
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view) ?: return
-        val emojiComposeView = root.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.emoji_compose_view) ?: return
         
         keyboardView.visibility = View.VISIBLE
-        emojiComposeView.visibility = View.GONE
         
         val parser = KeyboardParser(this)
         val keyboard = parser.parse(xmlResId)
@@ -118,37 +105,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
         
         mainView = root
         
-        // Also set on decorView since Compose might walk up past root inside InputMethodService dialog
-        val decorView = window.window?.decorView
-        decorView?.setViewTreeLifecycleOwner(this)
-        decorView?.setViewTreeViewModelStoreOwner(this)
-        decorView?.setViewTreeSavedStateRegistryOwner(this)
-
-        root.setViewTreeLifecycleOwner(this)
-        root.setViewTreeViewModelStoreOwner(this)
-        root.setViewTreeSavedStateRegistryOwner(this)
-        
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view)
         keyboardView.listener = this
-        
-        val emojiComposeView = root.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.emoji_compose_view)
-        emojiComposeView.setViewTreeLifecycleOwner(this)
-        emojiComposeView.setViewTreeViewModelStoreOwner(this)
-        emojiComposeView.setViewTreeSavedStateRegistryOwner(this)
-        
-        emojiComposeView.setContent {
-            com.example.keyboard.EmojiKeyboard(
-                onEmojiClick = { emoji ->
-                    currentInputConnection?.commitText(emoji, 1)
-                },
-                onBackClick = {
-                    switchKeyboardLayout(R.xml.kbd_qwerty)
-                },
-                onDeleteClick = {
-                    sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
-                }
-            )
-        }
         
         // Parse and set the XML layout
         val parser = KeyboardParser(this)
@@ -156,8 +114,63 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
         keyboardView.setKeyboard(keyboard)
         
         setupToolbar(root)
+        setupClipboard(root)
         
         return root
+    }
+    
+    private fun setupClipboard(root: View) {
+        val recycler = root.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.clipboard_recycler)
+        recycler.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        
+        clipboardAdapter = ClipboardAdapter(
+            onItemClicked = { item ->
+                currentInputConnection?.commitText(item.text, 1)
+                toggleClipboardModal()
+            },
+            onItemLongClicked = { item ->
+                coroutineScope.launch(Dispatchers.IO) {
+                    clipboardRepository.togglePin(item)
+                }
+            }
+        )
+        recycler.adapter = clipboardAdapter
+        
+        clipboardManager = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+        
+        // Observe clipboard history
+        coroutineScope.launch {
+            clipboardRepository.allItems.collect { items ->
+                clipboardAdapter?.setItems(items)
+            }
+        }
+    }
+    
+    private fun onPrimaryClipChanged() {
+        val clip = clipboardManager?.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val text = clip.getItemAt(0).text?.toString()
+            if (!text.isNullOrEmpty()) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    clipboardRepository.insert(text)
+                }
+            }
+        }
+    }
+    
+    private fun toggleClipboardModal() {
+        isClipboardModalOpen = !isClipboardModalOpen
+        val keyboardView = mainView?.findViewById<KeyboardView>(R.id.keyboard_view) ?: return
+        val recycler = mainView?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.clipboard_recycler) ?: return
+        
+        if (isClipboardModalOpen) {
+            keyboardView.visibility = View.GONE
+            recycler.visibility = View.VISIBLE
+        } else {
+            recycler.visibility = View.GONE
+            keyboardView.visibility = View.VISIBLE
+        }
     }
 
     private fun setupToolbar(root: View) {
@@ -198,15 +211,18 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
         pinnedContent.removeAllViews()
         
         val context = expandedContent.context
-        val pinnedKeys = com.example.keyboard.toolbar.ToolbarSettingsManager.getPinnedKeys(context)
-        val expandedKeys = com.example.keyboard.toolbar.ToolbarSettingsManager.getToolbarKeys(context)
+        val pinnedKeys = com.example.keyboard.toolbar.ToolbarSettingsManager.getPinnedKeys(context).toMutableList()
+        val expandedKeys = com.example.keyboard.toolbar.ToolbarSettingsManager.getToolbarKeys(context).toMutableList()
+        
+        // Remove pinned keys from expanded keys so they don't duplicate
+        expandedKeys.removeAll(pinnedKeys)
         
         btnIncognito = null // Reset ref
         
         val buttonSize = (40 * context.resources.displayMetrics.density).toInt()
         val marginEnd = (4 * context.resources.displayMetrics.density).toInt()
         
-        fun createButton(actionId: String): android.widget.ImageButton? {
+        fun createButton(actionId: String, isPinned: Boolean): android.widget.ImageButton? {
             val action = com.example.keyboard.toolbar.ToolbarSettingsManager.ALL_ACTIONS.find { it.id == actionId } ?: return null
             val btn = android.widget.ImageButton(context)
             val params = android.widget.LinearLayout.LayoutParams(buttonSize, buttonSize)
@@ -224,6 +240,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
                 "SETTINGS" -> R.drawable.ic_settings
                 "SELECT_ALL" -> R.drawable.ic_select_all
                 "CLIPBOARD", "PASTE" -> R.drawable.ic_clipboard
+                "ENTER" -> R.drawable.ic_enter
                 "COPY" -> R.drawable.ic_copy
                 "CUT" -> R.drawable.ic_cut
                 "INCOGNITO" -> R.drawable.ic_incognito_off
@@ -242,16 +259,61 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
             }
             
             btn.setOnClickListener { handleToolbarAction(actionId) }
+            
+            btn.setOnLongClickListener {
+                // If PASTE or CLIPBOARD, maybe we don't start drag? Or we do start drag, but we lose the hold-to-open-clipboard feature.
+                // Let's use Drag and Drop for all.
+                val clipData = android.content.ClipData.newPlainText("actionId", actionId)
+                val shadowBuilder = View.DragShadowBuilder(it)
+                it.startDragAndDrop(clipData, shadowBuilder, it, 0)
+                true
+            }
             return btn
         }
         
         expandedKeys.forEach { actionId ->
-            createButton(actionId)?.let { expandedContent.addView(it) }
+            createButton(actionId, false)?.let { expandedContent.addView(it) }
         }
         
         pinnedKeys.forEach { actionId ->
-            createButton(actionId)?.let { pinnedContent.addView(it) }
+            createButton(actionId, true)?.let { pinnedContent.addView(it) }
         }
+        
+        val dragListener = View.OnDragListener { v, event ->
+            when (event.action) {
+                android.view.DragEvent.ACTION_DROP -> {
+                    val actionId = event.clipData?.getItemAt(0)?.text?.toString() ?: return@OnDragListener false
+                    
+                    if (v == pinnedContent && !pinnedKeys.contains(actionId)) {
+                        expandedKeys.remove(actionId)
+                        pinnedKeys.add(actionId)
+                        com.example.keyboard.toolbar.ToolbarSettingsManager.savePinnedKeys(context, pinnedKeys)
+                        com.example.keyboard.toolbar.ToolbarSettingsManager.saveToolbarKeys(context, expandedKeys)
+                        populateToolbar(root, expandedContent, pinnedContent)
+                    } else if (v == expandedContent && !expandedKeys.contains(actionId)) {
+                        pinnedKeys.remove(actionId)
+                        expandedKeys.add(actionId)
+                        com.example.keyboard.toolbar.ToolbarSettingsManager.savePinnedKeys(context, pinnedKeys)
+                        com.example.keyboard.toolbar.ToolbarSettingsManager.saveToolbarKeys(context, expandedKeys)
+                        populateToolbar(root, expandedContent, pinnedContent)
+                    }
+                    v.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    true
+                }
+                android.view.DragEvent.ACTION_DRAG_ENTERED -> {
+                    v.setBackgroundColor(android.graphics.Color.parseColor("#33000000"))
+                    true
+                }
+                android.view.DragEvent.ACTION_DRAG_EXITED, android.view.DragEvent.ACTION_DRAG_ENDED -> {
+                    v.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    true
+                }
+                else -> true
+            }
+        }
+        
+        pinnedContent.setOnDragListener(dragListener)
+        expandedContent.setOnDragListener(dragListener)
     }
     
     private fun handleToolbarAction(actionId: String) {
@@ -263,7 +325,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
                 startActivity(intent)
             }
             "SELECT_ALL" -> currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
-            "CLIPBOARD", "PASTE" -> currentInputConnection?.performContextMenuAction(android.R.id.paste)
+            "PASTE" -> currentInputConnection?.performContextMenuAction(android.R.id.paste)
+            "CLIPBOARD" -> toggleClipboardModal()
+            "ENTER" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_ENTER)
             "COPY" -> currentInputConnection?.performContextMenuAction(android.R.id.copy)
             "CUT" -> currentInputConnection?.performContextMenuAction(android.R.id.cut)
             "LEFT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
@@ -466,20 +530,15 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
 
     override fun onWindowShown() {
         super.onWindowShown()
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
     }
 
     override fun onWindowHidden() {
         super.onWindowHidden()
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        store.clear()
+        clipboardManager?.removePrimaryClipChangedListener(clipboardListener)
         coroutineScope.launch {
              // cancel all in scope
         } // or just let it die. It's tied to service lifecycle.
@@ -647,8 +706,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
             "MODE_DESKTOP" -> switchKeyboardLayout(R.xml.kbd_desktop)
             "MODE_NUMPAD" -> switchKeyboardLayout(R.xml.kbd_numpad)
             "MODE_EMOJI" -> {
-                mainView?.findViewById<KeyboardView>(R.id.keyboard_view)?.visibility = View.GONE
-                mainView?.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.emoji_compose_view)?.visibility = View.VISIBLE
+                // TODO: Implement custom view for emoji
             }
             "SETTINGS" -> {
                 val intent = android.content.Intent(this, SettingsActivity::class.java).apply {
@@ -706,17 +764,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
 
     override fun onLongPressBackspace() {
         val inputConnection = currentInputConnection ?: return
-        val currentText = inputConnection.getTextBeforeCursor(10000, 0)
+        val currentText = inputConnection.getTextBeforeCursor(100000, 0)
         if (!currentText.isNullOrEmpty()) {
-            val lastNewline = currentText.lastIndexOf('\n')
-            val deleteCount = if (lastNewline != -1) {
-                currentText.length - lastNewline - 1
-            } else {
-                currentText.length
-            }
-            if (deleteCount > 0) {
-                inputConnection.deleteSurroundingText(deleteCount, 0)
-            }
+            inputConnection.deleteSurroundingText(currentText.length, 0)
         }
     }
 
@@ -727,6 +777,18 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
                 sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
             } else if (dx < 0) {
                 sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
+            }
+        }
+    }
+
+    override fun onSwipeDelete(deleteCount: Int) {
+        val inputConnection = currentInputConnection ?: return
+        if (deleteCount > 0) {
+            inputConnection.deleteSurroundingText(deleteCount, 0)
+            if (currentWord.isNotEmpty()) {
+                val deleteFromWord = kotlin.math.min(deleteCount, currentWord.length)
+                currentWord.delete(currentWord.length - deleteFromWord, currentWord.length)
+                updateSuggestions()
             }
         }
     }

@@ -6,7 +6,7 @@
     android:fitsSystemWindows="true"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:background="#D1D6DD">
+    android:background="#E3E5E8">
 
     <!-- Tool Bar / Suggestion Bar -->
     <FrameLayout
@@ -15,7 +15,7 @@
         android:layout_height="48dp"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:background="#E8EAED">
+        android:background="#E3E5E8">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -120,23 +120,50 @@
                 android:layout_height="match_parent"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
+                
+                <ImageButton
+                    android:id="@+id/btn_toolbar_enter"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_enter"
+                    android:padding="8dp"
+                    android:scaleType="centerInside"
+                    android:contentDescription="Next Line" />
+                
+                <ImageButton
+                    android:id="@+id/btn_toolbar_paste"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_clipboard"
+                    android:padding="8dp"
+                    android:scaleType="centerInside"
+                    android:contentDescription="Paste Menu" />
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Custom Drawn Keyboard Grid -->
-    <com.example.keyboard.KeyboardView
-        android:id="@+id/keyboard_view"
+    <!-- Content Area -->
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="260dp"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:background="#E8EAED" />
-
-    <androidx.compose.ui.platform.ComposeView
-        android:id="@+id/emoji_compose_view"
-        android:layout_width="match_parent"
-        android:layout_height="260dp"
-        android:visibility="gone" />
-
+        android:layout_height="260dp">
+        
+        <!-- Custom Drawn Keyboard Grid -->
+        <com.example.keyboard.KeyboardView
+            android:id="@+id/keyboard_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:background="#E3E5E8" />
+            
+        <!-- Clipboard History List -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/clipboard_recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#E3E5E8"
+            android:visibility="gone" />
+    </FrameLayout>
 </LinearLayout>

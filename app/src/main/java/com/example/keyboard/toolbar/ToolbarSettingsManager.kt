@@ -26,6 +26,7 @@ object ToolbarSettingsManager {
         ToolbarAction("COPY", "Copy"),
         ToolbarAction("CUT", "Cut"),
         ToolbarAction("PASTE", "Paste"),
+        ToolbarAction("ENTER", "Enter"),
         ToolbarAction("ONE_HANDED", "One-handed mode"),
         ToolbarAction("SPLIT", "Split keyboard"),
         ToolbarAction("INCOGNITO", "Force incognito mode"),
@@ -38,7 +39,7 @@ object ToolbarSettingsManager {
     )
     
     // Default Pinned
-    private val DEFAULT_PINNED = listOf("INCOGNITO", "SETTINGS")
+    private val DEFAULT_PINNED = listOf("ENTER", "PASTE")
     // Default Expanded (the items in the toolbar popup)
     private val DEFAULT_TOOLBAR = listOf("VOICE_INPUT", "CLIPBOARD", "NUMPAD", "UNDO", "REDO", "SETTINGS", "SELECT_ALL", "SELECT_WORD", "COPY", "CUT", "PASTE", "ONE_HANDED")
 

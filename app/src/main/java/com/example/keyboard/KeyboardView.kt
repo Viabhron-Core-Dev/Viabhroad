@@ -8,6 +8,7 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import com.example.R
 
 class KeyboardView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -19,6 +20,7 @@ class KeyboardView @JvmOverloads constructor(
         fun onLongPressEnter()
         fun onLongPressBackspace()
         fun onSwipeCursor(dx: Int)
+        fun onSwipeDelete(deleteCount: Int)
     }
 
     var listener: KeyboardListener? = null
@@ -26,7 +28,6 @@ class KeyboardView @JvmOverloads constructor(
     private var keyboard: Keyboard? = null
 
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
-    private val longPressRunnable = Runnable { triggerLongPress() }
 
     private var isAccentPopupVisible = false
     private var accentOptions = emptyList<String>()
@@ -40,13 +41,13 @@ class KeyboardView @JvmOverloads constructor(
     
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = Color.parseColor("#C5CAD1")
+        color = Color.parseColor("#C3C8CE")
     }
     
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
+        color = Color.parseColor("#1C1E21")
         textAlign = Paint.Align.CENTER
-        textSize = 55f
+        textSize = 58f
     }
 
     private val accentPopupPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -56,25 +57,36 @@ class KeyboardView @JvmOverloads constructor(
     
     private val accentPopupShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        color = Color.LTGRAY
+        color = Color.parseColor("#E0E0E0")
         strokeWidth = 2f
     }
 
     private val accentHoverPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = Color.LTGRAY
+        color = Color.parseColor("#DCDFE3")
     }
 
     private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#777777")
+        color = Color.parseColor("#6A7179")
         textAlign = Paint.Align.RIGHT
-        textSize = 16f
+        textSize = 20f
         typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
 
-    private val keyMarginHorizontal = 8f
-    private val keyMarginVertical = 10f
-    private val cornerRadius = 14f
+    private val previewBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.WHITE
+    }
+    
+    private val previewTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#1C1E21")
+        textAlign = Paint.Align.CENTER
+        textSize = 90f
+    }
+
+    private val keyMarginHorizontal = 10f
+    private val keyMarginVertical = 12f
+    private val cornerRadius = 22f
 
     fun setKeyboard(kbd: Keyboard) {
         this.keyboard = kbd
@@ -132,15 +144,35 @@ class KeyboardView @JvmOverloads constructor(
                 canvas.drawRoundRect(shadowRect, cornerRadius, cornerRadius, shadowPaint)
                 
                 // Draw Key Background
-                bgPaint.color = if (key == pressedKey && !isAccentPopupVisible) Color.LTGRAY 
-                                else if (key.isFunctional) Color.parseColor("#B4BACC") 
+                val isPressed = isKeyPressed(key)
+                bgPaint.color = if (isPressed && !isAccentPopupVisible) Color.parseColor("#BCC1C9")
+                                else if (key.isFunctional) Color.parseColor("#D4D8DD") 
                                 else Color.WHITE
                 
                 canvas.drawRoundRect(rect, cornerRadius, cornerRadius, bgPaint)
                 
-                // Draw text
-                val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
-                canvas.drawText(key.label, rect.centerX(), textY, textPaint)
+                // Draw icon or text
+                val drawableRes = when (key.codes) {
+                    "SHIFT" -> R.drawable.ic_shift
+                    "DEL" -> R.drawable.ic_backspace
+                    "ENTER" -> R.drawable.ic_enter
+                    else -> null
+                }
+                
+                if (drawableRes != null) {
+                    val drawable = context.getDrawable(drawableRes)
+                    if (drawable != null) {
+                        val iconWidth = drawable.intrinsicWidth * 1.5f
+                        val iconHeight = drawable.intrinsicHeight * 1.5f
+                        val left = rect.centerX() - iconWidth / 2
+                        val top = rect.centerY() - iconHeight / 2
+                        drawable.setBounds(left.toInt(), top.toInt(), (left + iconWidth).toInt(), (top + iconHeight).toInt())
+                        drawable.draw(canvas)
+                    }
+                } else {
+                    val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
+                    canvas.drawText(key.label, rect.centerX(), textY, textPaint)
+                }
                 
                 // Draw hint
                 if (key.codes.length == 1 && key.label.length == 1) {
@@ -148,11 +180,28 @@ class KeyboardView @JvmOverloads constructor(
                     if (hints.isNotEmpty()) {
                         val hintChar = hints[0]
                         if (hintChar.length == 1) {
-                            val hintX = rect.right - 10f
-                            val hintY = rect.top + 28f
+                            val hintX = rect.right - 12f
+                            val hintY = rect.top + 32f
                             canvas.drawText(hintChar, hintX, hintY, hintPaint)
                         }
                     }
+                }
+            }
+        }
+
+        // Draw key previews
+        for (i in 0 until activePointers.size()) {
+            val tracker = activePointers.valueAt(i)
+            if (tracker.isPressedValid && !isAccentPopupVisible) {
+                val pKey = tracker.pressedKey
+                if (pKey != null && !pKey.isFunctional && pKey.label.length == 1 && pKey.codes.length == 1 && pKey.codes != "SPACE") {
+                    val rect = RectF(
+                        pKey.x + keyMarginHorizontal,
+                        pKey.y + keyMarginVertical,
+                        pKey.x + pKey.width - keyMarginHorizontal,
+                        pKey.y + pKey.height - keyMarginVertical
+                    )
+                    drawKeyPreview(canvas, pKey, rect)
                 }
             }
         }
@@ -175,19 +224,194 @@ class KeyboardView @JvmOverloads constructor(
         }
     }
 
-    private var pressedKey: Key? = null
-    private var isPressedValid = false
-    private var isSpaceScrubbing = false
-    private var swipeStartX = 0f
-    private var lastScrubCursorDiff = 0
+    private fun drawKeyPreview(canvas: Canvas, key: Key, keyRect: RectF) {
+        val previewWidth = keyRect.width() * 1.5f
+        val previewHeight = keyRect.height() * 1.4f
+        
+        var previewX = keyRect.centerX() - (previewWidth / 2)
+        val previewY = keyRect.top - previewHeight + 10f
+        
+        if (previewX < 5f) previewX = 5f
+        if (previewX + previewWidth > width - 5f) previewX = width - previewWidth - 5f
+
+        val previewRect = RectF(
+            previewX,
+            previewY,
+            previewX + previewWidth,
+            previewY + previewHeight
+        )
+        
+        val shadowRect = RectF(
+            previewRect.left - 2f, 
+            previewRect.top, 
+            previewRect.right + 2f, 
+            previewRect.bottom + 8f
+        )
+        canvas.drawRoundRect(shadowRect, cornerRadius * 1.2f, cornerRadius * 1.2f, shadowPaint)
+        canvas.drawRoundRect(previewRect, cornerRadius * 1.2f, cornerRadius * 1.2f, previewBgPaint)
+        
+        val textY = previewRect.centerY() - ((previewTextPaint.descent() + previewTextPaint.ascent()) / 2)
+        canvas.drawText(key.label, previewRect.centerX(), textY, previewTextPaint)
+    }
+
+    inner class PointerTracker(val pointerId: Int) {
+        var pressedKey: Key? = null
+        var isPressedValid = false
+        var isSpaceScrubbing = false
+        var isDeleteScrubbing = false
+        var swipeStartX = 0f
+        var lastScrubCursorDiff = 0
+        
+        private val longPressRunnable = Runnable { triggerLongPress(this) }
+        
+        fun onDown(x: Float, y: Float) {
+            val key = findKey(x, y)
+            if (key != null && key.codes.isNotEmpty()) {
+                pressedKey = key
+                isPressedValid = true
+                swipeStartX = x
+                lastScrubCursorDiff = 0
+                isSpaceScrubbing = false
+                isDeleteScrubbing = false
+                handler.postDelayed(longPressRunnable, 400)
+                invalidate()
+            }
+        }
+        
+        fun onMove(x: Float, y: Float) {
+            if (isAccentPopupVisible && activePopupTracker == this) {
+                hoveredAccentIndex = -1
+                for ((index, optionData) in accentOptionRects.withIndex()) {
+                    val rect = optionData.second
+                    val touchRect = RectF(rect.left - 10, rect.top - 50, rect.right + 10, rect.bottom + 50)
+                    if (touchRect.contains(x, y)) {
+                        hoveredAccentIndex = index
+                        break
+                    }
+                }
+                invalidate()
+                return
+            }
+            if (isPressedValid) {
+                val key = pressedKey
+                if (key != null && key.codes == "SPACE") {
+                    val dx = x - swipeStartX
+                    val diff = (dx / scrubThreshold).toInt()
+                    if (kotlin.math.abs(dx) > scrubThreshold) {
+                        if (!isSpaceScrubbing) {
+                            isSpaceScrubbing = true
+                            handler.removeCallbacks(longPressRunnable)
+                        }
+                        if (diff != lastScrubCursorDiff) {
+                            val moveDiff = diff - lastScrubCursorDiff
+                            listener?.onSwipeCursor(moveDiff)
+                            lastScrubCursorDiff = diff
+                        }
+                        return
+                    }
+                } else if (key != null && key.codes == "DEL") {
+                    val dx = x - swipeStartX
+                    // Swipe left to delete
+                    if (dx < -scrubThreshold) {
+                        if (!isDeleteScrubbing) {
+                            isDeleteScrubbing = true
+                            handler.removeCallbacks(longPressRunnable)
+                        }
+                        // For every 30px moved left, delete 1 word or char (let's say 1 step)
+                        val diff = (-dx / scrubThreshold).toInt()
+                        if (diff > lastScrubCursorDiff) {
+                            val moveDiff = diff - lastScrubCursorDiff
+                            listener?.onSwipeDelete(moveDiff)
+                            lastScrubCursorDiff = diff
+                        }
+                        return
+                    }
+                }
+
+                if (!isSpaceScrubbing && !isDeleteScrubbing && key != null) {
+                    val rect = RectF(key.x, key.y, key.x + key.width, key.y + key.height)
+                    if (!rect.contains(x, y)) {
+                        handler.removeCallbacks(longPressRunnable)
+                        val newKey = findKey(x, y)
+                        if (newKey != null && newKey.codes.isNotEmpty()) {
+                            pressedKey = newKey
+                            isPressedValid = true
+                            handler.postDelayed(longPressRunnable, 400)
+                        } else {
+                            pressedKey = null
+                            isPressedValid = false
+                        }
+                        invalidate()
+                    }
+                }
+            }
+        }
+        
+        fun onUp() {
+            handler.removeCallbacks(longPressRunnable)
+            if (isAccentPopupVisible && activePopupTracker == this) {
+                if (hoveredAccentIndex != -1) {
+                    val option = accentOptionRects[hoveredAccentIndex].first
+                    listener?.onKeyPress(option)
+                }
+                isAccentPopupVisible = false
+                hoveredAccentIndex = -1
+                activePopupTracker = null
+            } else if (isPressedValid && pressedKey != null) {
+                if (!isSpaceScrubbing && !isDeleteScrubbing) {
+                    pressedKey?.codes?.let { listener?.onKeyPress(it) }
+                }
+            }
+            pressedKey = null
+            isPressedValid = false
+            isSpaceScrubbing = false
+            isDeleteScrubbing = false
+            invalidate()
+        }
+        
+        fun onCancel() {
+            handler.removeCallbacks(longPressRunnable)
+            if (activePopupTracker == this) {
+                isAccentPopupVisible = false
+                hoveredAccentIndex = -1
+                activePopupTracker = null
+            }
+            pressedKey = null
+            isPressedValid = false
+            isSpaceScrubbing = false
+            isDeleteScrubbing = false
+            invalidate()
+        }
+    }
+
+    private val activePointers = android.util.SparseArray<PointerTracker>()
+    private var activePopupTracker: PointerTracker? = null
     private val scrubThreshold = 30f
+
+    private fun getTracker(id: Int): PointerTracker {
+        var tracker = activePointers.get(id)
+        if (tracker == null) {
+            tracker = PointerTracker(id)
+            activePointers.put(id, tracker)
+        }
+        return tracker
+    }
+
+    private fun isKeyPressed(key: Key): Boolean {
+        for (i in 0 until activePointers.size()) {
+            val tracker = activePointers.valueAt(i)
+            if (tracker.pressedKey == key && tracker.isPressedValid) return true
+        }
+        return false
+    }
 
     private fun getLabelForAccentCode(code: String): String {
         return when (code) {
-            "MODE_NUMPAD" -> "123"
+            "MODE_NUMPAD" -> "1234"
             "MODE_EMOJI" -> "🙂"
             "MODE_NAVIGATION" -> "⇦"
             "MODE_DESKTOP" -> "PC"
+            "MODE_SYMBOLS" -> "?123"
             "MODE_SYMBOLS_SHIFT" -> "=\\<"
             "SETTINGS" -> "⚙️"
             "ONE_HAND" -> "🗗"
@@ -198,21 +422,21 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun getAccentsForKey(key: String): List<String> {
         return when (key.lowercase()) {
-            "q" -> listOf("%")
-            "w" -> listOf("/")
-            "e" -> listOf("|", "é", "è", "ê")
-            "r" -> listOf("=")
-            "t" -> listOf("[")
-            "y" -> listOf("]")
-            "u" -> listOf("*", "ú", "ù", "û")
-            "i" -> listOf("!", "í", "ì", "î")
-            "o" -> listOf("-", "ó", "ò", "ô")
-            "p" -> listOf(";")
+            "q" -> listOf("1", "%")
+            "w" -> listOf("2", "\\")
+            "e" -> listOf("3", "|", "é", "è", "ê")
+            "r" -> listOf("4", "=")
+            "t" -> listOf("5", "[")
+            "y" -> listOf("6", "]")
+            "u" -> listOf("7", "<", "ú", "ù", "û")
+            "i" -> listOf("8", ">", "í", "ì", "î")
+            "o" -> listOf("9", "{", "ó", "ò", "ô")
+            "p" -> listOf("0", "}")
             "a" -> listOf("@", "á", "à", "â")
             "s" -> listOf("#", "ß", "ś", "š")
             "d" -> listOf("₹", "$", "¢", "€", "£", "¥")
-            "f" -> listOf("_")
-            "g" -> listOf("&")
+            "f" -> listOf("&")
+            "g" -> listOf("_")
             "h" -> listOf("-")
             "j" -> listOf("+")
             "k" -> listOf("(")
@@ -238,34 +462,35 @@ class KeyboardView @JvmOverloads constructor(
             "?" -> listOf("¿")
             "mode_symbols" -> listOf("MODE_NUMPAD", "MODE_EMOJI", "MODE_NAVIGATION", "MODE_SYMBOLS_SHIFT", "MODE_DESKTOP")
             "." -> listOf("&", "%", "+", "\"", "-", ":", "'", "@", ";", "/", "(", ")", "#", "!", ",", "?", "]", "[")
-            "," -> listOf("ONE_HAND", "SETTINGS", "CLIPBOARD")
+            "," -> listOf("MODE_EMOJI", "SETTINGS", "CLIPBOARD")
             else -> emptyList()
         }
     }
 
-    private fun triggerLongPress() {
-        val key = pressedKey ?: return
-        if (!isPressedValid) return
+    private fun triggerLongPress(tracker: PointerTracker) {
+        val key = tracker.pressedKey ?: return
+        if (!tracker.isPressedValid) return
 
         if (key.codes == "ENTER") {
             listener?.onLongPressEnter()
-            pressedKey = null
-            isPressedValid = false
+            tracker.pressedKey = null
+            tracker.isPressedValid = false
             invalidate()
         } else if (key.codes == "DEL") {
             listener?.onLongPressBackspace()
-            pressedKey = null
-            isPressedValid = false
+            tracker.pressedKey = null
+            tracker.isPressedValid = false
             invalidate()
         } else if (key.codes == "SHIFT") {
             listener?.onLongPressKey("SHIFT", RectF(key.x, key.y, key.x + key.width, key.y + key.height), this)
-            pressedKey = null
-            isPressedValid = false
+            tracker.pressedKey = null
+            tracker.isPressedValid = false
             invalidate()
         } else {
             val options = getAccentsForKey(key.codes)
             if (options.isNotEmpty()) {
                 isAccentPopupVisible = true
+                activePopupTracker = tracker
                 accentOptions = options
                 hoveredAccentIndex = -1
                 
@@ -308,97 +533,34 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val x = event.x
-        val y = event.y
+        val action = event.actionMasked
+        val pointerIndex = event.actionIndex
+        val pointerId = event.getPointerId(pointerIndex)
 
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                val key = findKey(x, y)
-                if (key != null && key.codes.isNotEmpty()) {
-                    pressedKey = key
-                    isPressedValid = true
-                    swipeStartX = x
-                    lastScrubCursorDiff = 0
-                    isSpaceScrubbing = false
-                    handler.postDelayed(longPressRunnable, 400)
-                    invalidate()
-                }
+        when (action) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                val x = event.getX(pointerIndex)
+                val y = event.getY(pointerIndex)
+                getTracker(pointerId).onDown(x, y)
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
-                if (isAccentPopupVisible) {
-                    hoveredAccentIndex = -1
-                    for ((index, optionData) in accentOptionRects.withIndex()) {
-                        val rect = optionData.second
-                        // Expand touch target slightly for easier dragging
-                        val touchRect = RectF(rect.left - 10, rect.top - 50, rect.right + 10, rect.bottom + 50)
-                        if (touchRect.contains(x, y)) {
-                            hoveredAccentIndex = index
-                            break
-                        }
-                    }
-                    invalidate()
-                } else if (isPressedValid) {
-                    val key = pressedKey
-                    if (key != null && key.codes == "SPACE") {
-                        val dx = x - swipeStartX
-                        val diff = (dx / scrubThreshold).toInt()
-                        if (kotlin.math.abs(dx) > scrubThreshold) {
-                            if (!isSpaceScrubbing) {
-                                isSpaceScrubbing = true
-                                handler.removeCallbacks(longPressRunnable)
-                            }
-                            if (diff != lastScrubCursorDiff) {
-                                val moveDiff = diff - lastScrubCursorDiff
-                                listener?.onSwipeCursor(moveDiff)
-                                lastScrubCursorDiff = diff
-                            }
-                            return true
-                        }
-                    }
-
-                    // Check if finger moved too far from the key
-                    if (!isSpaceScrubbing && key != null) {
-                        val rect = RectF(key.x, key.y, key.x + key.width, key.y + key.height)
-                        // If moved significantly out of bounds, cancel long press
-                        if (!rect.contains(x, y)) {
-                            isPressedValid = false
-                            pressedKey = findKey(x, y)
-                            handler.removeCallbacks(longPressRunnable)
-                            invalidate()
-                        }
-                    }
+                for (i in 0 until event.pointerCount) {
+                    val id = event.getPointerId(i)
+                    val x = event.getX(i)
+                    val y = event.getY(i)
+                    getTracker(id).onMove(x, y)
                 }
                 return true
             }
-            MotionEvent.ACTION_UP -> {
-                handler.removeCallbacks(longPressRunnable)
-                if (isAccentPopupVisible) {
-                    if (hoveredAccentIndex != -1) {
-                        val option = accentOptionRects[hoveredAccentIndex].first
-                        listener?.onKeyPress(option)
-                    }
-                    isAccentPopupVisible = false
-                    hoveredAccentIndex = -1
-                } else if (isPressedValid && pressedKey != null) {
-                    if (!isSpaceScrubbing) {
-                        pressedKey?.codes?.let { listener?.onKeyPress(it) }
-                    }
-                }
-                
-                pressedKey = null
-                isPressedValid = false
-                isSpaceScrubbing = false
-                invalidate()
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                getTracker(pointerId).onUp()
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
-                handler.removeCallbacks(longPressRunnable)
-                isAccentPopupVisible = false
-                pressedKey = null
-                isPressedValid = false
-                isSpaceScrubbing = false
-                invalidate()
+                for (i in 0 until activePointers.size()) {
+                    activePointers.valueAt(i).onCancel()
+                }
                 return true
             }
         }
