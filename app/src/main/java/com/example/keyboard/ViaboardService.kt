@@ -116,16 +116,26 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Lif
     override fun onCreateInputView(): View {
         val root = layoutInflater.inflate(R.layout.keyboard_view, null)
         
+        mainView = root
+        
+        // Also set on decorView since Compose might walk up past root inside InputMethodService dialog
+        val decorView = window.window?.decorView
+        decorView?.setViewTreeLifecycleOwner(this)
+        decorView?.setViewTreeViewModelStoreOwner(this)
+        decorView?.setViewTreeSavedStateRegistryOwner(this)
+
         root.setViewTreeLifecycleOwner(this)
         root.setViewTreeViewModelStoreOwner(this)
         root.setViewTreeSavedStateRegistryOwner(this)
-        
-        mainView = root
         
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view)
         keyboardView.listener = this
         
         val emojiComposeView = root.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.emoji_compose_view)
+        emojiComposeView.setViewTreeLifecycleOwner(this)
+        emojiComposeView.setViewTreeViewModelStoreOwner(this)
+        emojiComposeView.setViewTreeSavedStateRegistryOwner(this)
+        
         emojiComposeView.setContent {
             com.example.keyboard.EmojiKeyboard(
                 onEmojiClick = { emoji ->
