@@ -41,13 +41,14 @@ class KeyboardView @JvmOverloads constructor(
     
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = Color.parseColor("#C3C8CE")
+        color = Color.parseColor("#B8BCBE")
     }
     
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#1C1E21")
         textAlign = Paint.Align.CENTER
-        textSize = 58f
+        textSize = 54f
+        typeface = android.graphics.Typeface.SANS_SERIF
     }
 
     private val accentPopupPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -70,7 +71,7 @@ class KeyboardView @JvmOverloads constructor(
         color = Color.parseColor("#6A7179")
         textAlign = Paint.Align.RIGHT
         textSize = 20f
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
+        typeface = android.graphics.Typeface.SANS_SERIF
     }
 
     private val previewBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -84,9 +85,9 @@ class KeyboardView @JvmOverloads constructor(
         textSize = 90f
     }
 
-    private val keyMarginHorizontal = 10f
-    private val keyMarginVertical = 12f
-    private val cornerRadius = 22f
+    private val keyMarginHorizontal = 8f
+    private val keyMarginVertical = 16f
+    private val cornerRadius = 20f
 
     fun setKeyboard(kbd: Keyboard) {
         this.keyboard = kbd
@@ -145,8 +146,8 @@ class KeyboardView @JvmOverloads constructor(
                 
                 // Draw Key Background
                 val isPressed = isKeyPressed(key)
-                bgPaint.color = if (isPressed && !isAccentPopupVisible) Color.parseColor("#BCC1C9")
-                                else if (key.isFunctional) Color.parseColor("#D4D8DD") 
+                bgPaint.color = if (isPressed && !isAccentPopupVisible) Color.parseColor("#D0D4D9")
+                                else if (key.isFunctional) Color.parseColor("#DEE2E6") 
                                 else Color.WHITE
                 
                 canvas.drawRoundRect(rect, cornerRadius, cornerRadius, bgPaint)
@@ -180,8 +181,8 @@ class KeyboardView @JvmOverloads constructor(
                     if (hints.isNotEmpty()) {
                         val hintChar = hints[0]
                         if (hintChar.length == 1) {
-                            val hintX = rect.right - 12f
-                            val hintY = rect.top + 32f
+                            val hintX = rect.right - 14f
+                            val hintY = rect.top + 28f
                             canvas.drawText(hintChar, hintX, hintY, hintPaint)
                         }
                     }
@@ -422,21 +423,31 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun getAccentsForKey(key: String): List<String> {
         return when (key.lowercase()) {
-            "q" -> listOf("1", "%")
-            "w" -> listOf("2", "\\")
-            "e" -> listOf("3", "|", "é", "è", "ê")
-            "r" -> listOf("4", "=")
-            "t" -> listOf("5", "[")
-            "y" -> listOf("6", "]")
-            "u" -> listOf("7", "<", "ú", "ù", "û")
-            "i" -> listOf("8", ">", "í", "ì", "î")
-            "o" -> listOf("9", "{", "ó", "ò", "ô")
-            "p" -> listOf("0", "}")
+            "1" -> listOf("¹", "½", "⅓", "¼", "⅛")
+            "2" -> listOf("²", "⅔")
+            "3" -> listOf("³", "¾", "⅜")
+            "4" -> listOf("⁴")
+            "5" -> listOf("⁵", "⅝")
+            "6" -> listOf("⁶")
+            "7" -> listOf("⁷", "⅞")
+            "8" -> listOf("⁸")
+            "9" -> listOf("⁹")
+            "0" -> listOf("ⁿ", "∅")
+            "q" -> listOf("%")
+            "w" -> listOf("\\")
+            "e" -> listOf("|", "é", "è", "ê")
+            "r" -> listOf("=")
+            "t" -> listOf("[")
+            "y" -> listOf("]")
+            "u" -> listOf("<", "ú", "ù", "û")
+            "i" -> listOf(">", "í", "ì", "î")
+            "o" -> listOf("{", "ó", "ò", "ô")
+            "p" -> listOf("}")
             "a" -> listOf("@", "á", "à", "â")
             "s" -> listOf("#", "ß", "ś", "š")
             "d" -> listOf("₹", "$", "¢", "€", "£", "¥")
-            "f" -> listOf("&")
-            "g" -> listOf("_")
+            "f" -> listOf("_")
+            "g" -> listOf("&")
             "h" -> listOf("-")
             "j" -> listOf("+")
             "k" -> listOf("(")
@@ -448,16 +459,6 @@ class KeyboardView @JvmOverloads constructor(
             "b" -> listOf(";")
             "n" -> listOf("!", "ñ", "ń", "ň")
             "m" -> listOf("?")
-            "1" -> listOf("¹", "½", "⅓", "¼", "⅛")
-            "2" -> listOf("²", "⅔")
-            "3" -> listOf("³", "¾", "⅜")
-            "4" -> listOf("⁴")
-            "5" -> listOf("⁵", "⅝")
-            "6" -> listOf("⁶")
-            "7" -> listOf("⁷", "⅞")
-            "8" -> listOf("⁸")
-            "9" -> listOf("⁹")
-            "0" -> listOf("ⁿ", "∅")
             "!" -> listOf("¡")
             "?" -> listOf("¿")
             "mode_symbols" -> listOf("MODE_NUMPAD", "MODE_EMOJI", "MODE_NAVIGATION", "MODE_SYMBOLS_SHIFT", "MODE_DESKTOP")
