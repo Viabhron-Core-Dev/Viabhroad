@@ -47,7 +47,7 @@ class KeyboardView @JvmOverloads constructor(
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#1C1E21")
         textAlign = Paint.Align.CENTER
-        textSize = 58f
+        textSize = 54f
         typeface = android.graphics.Typeface.SANS_SERIF
     }
 
@@ -70,8 +70,8 @@ class KeyboardView @JvmOverloads constructor(
     private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#6A7179")
         textAlign = Paint.Align.RIGHT
-        textSize = 18f
-        typeface = android.graphics.Typeface.SANS_SERIF
+        textSize = 16f
+        typeface = android.graphics.Typeface.DEFAULT
     }
 
     private val previewBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -85,9 +85,9 @@ class KeyboardView @JvmOverloads constructor(
         textSize = 90f
     }
 
-    private val keyMarginHorizontal = 8f
-    private val keyMarginVertical = 12f
-    private val cornerRadius = 20f
+    private val keyMarginHorizontal = 5f
+    private val keyMarginVertical = 6f
+    private val cornerRadius = 14f
 
     fun setKeyboard(kbd: Keyboard) {
         this.keyboard = kbd
@@ -141,13 +141,13 @@ class KeyboardView @JvmOverloads constructor(
                 )
                 
                 // Draw Shadow
-                val shadowRect = RectF(rect.left, rect.top, rect.right, rect.bottom + 4f)
+                val shadowRect = RectF(rect.left, rect.top, rect.right, rect.bottom + 3f)
                 canvas.drawRoundRect(shadowRect, cornerRadius, cornerRadius, shadowPaint)
                 
                 // Draw Key Background
                 val isPressed = isKeyPressed(key)
                 bgPaint.color = if (isPressed && !isAccentPopupVisible) Color.parseColor("#D0D3D8")
-                                else if (key.isFunctional) Color.parseColor("#E0E3E8") 
+                                else if (key.isFunctional) Color.parseColor("#DDE1E5") 
                                 else Color.WHITE
                 
                 canvas.drawRoundRect(rect, cornerRadius, cornerRadius, bgPaint)
@@ -186,8 +186,8 @@ class KeyboardView @JvmOverloads constructor(
                     if (hints.isNotEmpty()) {
                         val hintChar = hints[0]
                         if (hintChar.length == 1) {
-                            val hintX = rect.right - 14f
-                            val hintY = rect.top + 28f
+                            val hintX = rect.right - 10f
+                            val hintY = rect.top + 24f
                             canvas.drawText(hintChar, hintX, hintY, hintPaint)
                         }
                     }
@@ -428,16 +428,16 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun getAccentsForKey(key: String): List<String> {
         return when (key.lowercase()) {
-            "1" -> listOf("¹", "½", "⅓", "¼", "⅛")
-            "2" -> listOf("²", "⅔")
-            "3" -> listOf("³", "¾", "⅜")
-            "4" -> listOf("⁴")
-            "5" -> listOf("⁵", "⅝")
-            "6" -> listOf("⁶")
-            "7" -> listOf("⁷", "⅞")
-            "8" -> listOf("⁸")
-            "9" -> listOf("⁹")
-            "0" -> listOf("ⁿ", "∅")
+            "1" -> emptyList()
+            "2" -> emptyList()
+            "3" -> emptyList()
+            "4" -> emptyList()
+            "5" -> emptyList()
+            "6" -> emptyList()
+            "7" -> emptyList()
+            "8" -> emptyList()
+            "9" -> emptyList()
+            "0" -> emptyList()
             "q" -> listOf("%")
             "w" -> listOf("\\")
             "e" -> listOf("|", "é", "è", "ê")
