@@ -41,13 +41,13 @@ class KeyboardView @JvmOverloads constructor(
     
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = Color.parseColor("#B8BCBE")
+        color = Color.parseColor("#D0D3D8")
     }
     
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#1C1E21")
         textAlign = Paint.Align.CENTER
-        textSize = 54f
+        textSize = 58f
         typeface = android.graphics.Typeface.SANS_SERIF
     }
 
@@ -70,7 +70,7 @@ class KeyboardView @JvmOverloads constructor(
     private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#6A7179")
         textAlign = Paint.Align.RIGHT
-        textSize = 20f
+        textSize = 18f
         typeface = android.graphics.Typeface.SANS_SERIF
     }
 
@@ -86,7 +86,7 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private val keyMarginHorizontal = 8f
-    private val keyMarginVertical = 16f
+    private val keyMarginVertical = 12f
     private val cornerRadius = 20f
 
     fun setKeyboard(kbd: Keyboard) {
@@ -141,13 +141,13 @@ class KeyboardView @JvmOverloads constructor(
                 )
                 
                 // Draw Shadow
-                val shadowRect = RectF(rect.left, rect.top, rect.right, rect.bottom + 6f)
+                val shadowRect = RectF(rect.left, rect.top, rect.right, rect.bottom + 4f)
                 canvas.drawRoundRect(shadowRect, cornerRadius, cornerRadius, shadowPaint)
                 
                 // Draw Key Background
                 val isPressed = isKeyPressed(key)
-                bgPaint.color = if (isPressed && !isAccentPopupVisible) Color.parseColor("#D0D4D9")
-                                else if (key.isFunctional) Color.parseColor("#DEE2E6") 
+                bgPaint.color = if (isPressed && !isAccentPopupVisible) Color.parseColor("#D0D3D8")
+                                else if (key.isFunctional) Color.parseColor("#E0E3E8") 
                                 else Color.WHITE
                 
                 canvas.drawRoundRect(rect, cornerRadius, cornerRadius, bgPaint)
@@ -171,8 +171,13 @@ class KeyboardView @JvmOverloads constructor(
                         drawable.draw(canvas)
                     }
                 } else {
+                    val originalSize = textPaint.textSize
+                    if (key.label.length > 1) {
+                        textPaint.textSize = originalSize * 0.65f
+                    }
                     val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
                     canvas.drawText(key.label, rect.centerX(), textY, textPaint)
+                    textPaint.textSize = originalSize
                 }
                 
                 // Draw hint

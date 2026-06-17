@@ -52,7 +52,7 @@
     <Row>
         <Key codes="MODE_SYMBOLS" label="\?123" weight="1.5" isFunctional="true" />
         <Key codes="," label="," weight="1.0" />
-        <Key codes="SPACE" label="" weight="4.0" />
+        <Key codes="SPACE" label="" weight="5.0" />
         <Key codes="." label="." weight="1.0" />
         <Key codes="ENTER" label="↵" weight="1.5" isFunctional="true" />
     </Row>

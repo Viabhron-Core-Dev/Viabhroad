@@ -6,7 +6,7 @@
     android:fitsSystemWindows="true"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:background="#E3E5E8">
+    android:background="#EBEDF0">
 
     <!-- Tool Bar / Suggestion Bar -->
     <FrameLayout
@@ -15,7 +15,7 @@
         android:layout_height="48dp"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:background="#E3E5E8">
+        android:background="#EBEDF0">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -156,14 +156,14 @@
             android:layout_height="match_parent"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:background="#E3E5E8" />
+            android:background="#EBEDF0" />
             
         <!-- Clipboard History List -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/clipboard_recycler"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#E3E5E8"
+            android:background="#EBEDF0"
             android:visibility="gone" />
     </FrameLayout>
 </LinearLayout>
