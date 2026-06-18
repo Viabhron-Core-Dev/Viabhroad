@@ -236,18 +236,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             btn.contentDescription = action.name
             
             // Map icon
-            val resId = when(actionId) {
-                "SETTINGS" -> R.drawable.ic_settings
-                "SELECT_ALL" -> R.drawable.ic_select_all
-                "CLIPBOARD", "PASTE" -> R.drawable.ic_clipboard
-                "ENTER" -> R.drawable.ic_enter
-                "COPY" -> R.drawable.ic_copy
-                "CUT" -> R.drawable.ic_cut
-                "INCOGNITO" -> R.drawable.ic_incognito_off
-                "LEFT" -> R.drawable.ic_chevron_left
-                "RIGHT" -> R.drawable.ic_chevron_right
-                else -> R.drawable.ic_settings // Placeholder for missing icons
-            }
+            val resId = action.iconResId
             btn.setImageResource(resId)
             
             // Register specific references

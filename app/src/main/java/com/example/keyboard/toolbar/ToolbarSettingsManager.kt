@@ -2,11 +2,12 @@ package com.example.keyboard.toolbar
 
 import android.content.Context
 import androidx.core.content.edit
+import com.example.R
 
 data class ToolbarAction(
     val id: String,
     val name: String,
-    // Using string IDs to lookup Icons later, standard icons can map via a utility later
+    val iconResId: Int
 )
 
 object ToolbarSettingsManager {
@@ -15,27 +16,27 @@ object ToolbarSettingsManager {
     private const val PREF_TOOLBAR_KEYS = "toolbar_keys"
     
     val ALL_ACTIONS = listOf(
-        ToolbarAction("VOICE_INPUT", "Voice input"),
-        ToolbarAction("CLIPBOARD", "Clipboard"),
-        ToolbarAction("NUMPAD", "Numpad"),
-        ToolbarAction("UNDO", "Undo"),
-        ToolbarAction("REDO", "Redo"),
-        ToolbarAction("SETTINGS", "Settings"),
-        ToolbarAction("SELECT_ALL", "Select all"),
-        ToolbarAction("SELECT_WORD", "Select word"),
-        ToolbarAction("COPY", "Copy"),
-        ToolbarAction("CUT", "Cut"),
-        ToolbarAction("PASTE", "Paste"),
-        ToolbarAction("ENTER", "Enter"),
-        ToolbarAction("ONE_HANDED", "One-handed mode"),
-        ToolbarAction("SPLIT", "Split keyboard"),
-        ToolbarAction("INCOGNITO", "Force incognito mode"),
-        ToolbarAction("EMOJI", "Emoji"),
-        ToolbarAction("LEFT", "Left"),
-        ToolbarAction("RIGHT", "Right"),
-        ToolbarAction("UP", "Up"),
-        ToolbarAction("DOWN", "Down"),
-        ToolbarAction("CLEAR_CLIP", "Clear clipboard")
+        ToolbarAction("VOICE_INPUT", "Voice input", R.drawable.ic_settings_advanced), // Placeholder
+        ToolbarAction("CLIPBOARD", "Clipboard", R.drawable.ic_clipboard),
+        ToolbarAction("NUMPAD", "Numpad", R.drawable.ic_settings_advanced), // Placeholder
+        ToolbarAction("UNDO", "Undo", R.drawable.ic_undo),
+        ToolbarAction("REDO", "Redo", R.drawable.ic_redo),
+        ToolbarAction("SETTINGS", "Settings", R.drawable.ic_settings),
+        ToolbarAction("SELECT_ALL", "Select all", R.drawable.ic_select_all),
+        ToolbarAction("SELECT_WORD", "Select word", R.drawable.ic_select),
+        ToolbarAction("COPY", "Copy", R.drawable.ic_copy),
+        ToolbarAction("CUT", "Cut", R.drawable.ic_cut),
+        ToolbarAction("PASTE", "Paste", R.drawable.ic_clipboard), // Placeholder
+        ToolbarAction("ENTER", "Enter", R.drawable.ic_enter),
+        ToolbarAction("ONE_HANDED", "One-handed mode", R.drawable.ic_settings_gesture), // Placeholder
+        ToolbarAction("SPLIT", "Split keyboard", R.drawable.ic_settings_appearance), // Placeholder
+        ToolbarAction("INCOGNITO", "Force incognito mode", R.drawable.ic_incognito_on),
+        ToolbarAction("EMOJI", "Emoji", R.drawable.ic_emoji_emoticons),
+        ToolbarAction("LEFT", "Left", R.drawable.ic_arrow_left),
+        ToolbarAction("RIGHT", "Right", R.drawable.ic_chevron_right), // Use chevron_right
+        ToolbarAction("UP", "Up", R.drawable.ic_arrow_horizontal), // Placeholder
+        ToolbarAction("DOWN", "Down", R.drawable.ic_arrow_horizontal), // Placeholder
+        ToolbarAction("CLEAR_CLIP", "Clear clipboard", R.drawable.ic_bin)
     )
     
     // Default Pinned
