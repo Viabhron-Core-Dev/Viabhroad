@@ -136,6 +136,19 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         )
         recycler.adapter = clipboardAdapter
         
+        // Sidebar buttons
+        root.findViewById<android.view.View>(R.id.btn_clipboard_clear)?.setOnClickListener {
+            coroutineScope.launch(Dispatchers.IO) {
+                clipboardRepository.deleteAllUnpinned()
+            }
+        }
+        root.findViewById<android.view.View>(R.id.btn_clipboard_enter)?.setOnClickListener {
+            sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_ENTER)
+        }
+        root.findViewById<android.view.View>(R.id.btn_clipboard_backspace)?.setOnClickListener {
+            sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
+        }
+
         clipboardManager = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
         clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
         
@@ -162,13 +175,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private fun toggleClipboardModal() {
         isClipboardModalOpen = !isClipboardModalOpen
         val keyboardView = mainView?.findViewById<KeyboardView>(R.id.keyboard_view) ?: return
-        val recycler = mainView?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.clipboard_recycler) ?: return
+        val clipboardContainer = mainView?.findViewById<android.widget.LinearLayout>(R.id.clipboard_container) ?: return
         
         if (isClipboardModalOpen) {
             keyboardView.visibility = View.GONE
-            recycler.visibility = View.VISIBLE
+            clipboardContainer.visibility = View.VISIBLE
         } else {
-            recycler.visibility = View.GONE
+            clipboardContainer.visibility = View.GONE
             keyboardView.visibility = View.VISIBLE
         }
     }
@@ -394,6 +407,12 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 populateToolbar(root, expandedContent, pinnedContent)
             }
         }
+
+        val clipboardContainer = mainView?.findViewById<android.widget.LinearLayout>(R.id.clipboard_container)
+        val keyboardView = mainView?.findViewById<com.example.keyboard.KeyboardView>(R.id.keyboard_view)
+        clipboardContainer?.visibility = android.view.View.GONE
+        keyboardView?.visibility = android.view.View.VISIBLE
+        isClipboardModalOpen = false
 
         // Select initial layout based on input type
         val inputType = info?.inputType ?: android.text.InputType.TYPE_CLASS_TEXT
