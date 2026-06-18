@@ -250,12 +250,17 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             btn.setOnClickListener { handleToolbarAction(actionId) }
             
             btn.setOnLongClickListener {
-                // If PASTE or CLIPBOARD, maybe we don't start drag? Or we do start drag, but we lose the hold-to-open-clipboard feature.
-                // Let's use Drag and Drop for all.
-                val clipData = android.content.ClipData.newPlainText("actionId", actionId)
-                val shadowBuilder = View.DragShadowBuilder(it)
-                it.startDragAndDrop(clipData, shadowBuilder, it, 0)
-                true
+                when (actionId) {
+                    "SELECT_WORD" -> {
+                        handleToolbarAction("SELECT_ALL")
+                        true
+                    }
+                    "PASTE" -> {
+                        handleToolbarAction("CLIPBOARD")
+                        true
+                    }
+                    else -> false
+                }
             }
             return btn
         }
@@ -267,42 +272,6 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         pinnedKeys.forEach { actionId ->
             createButton(actionId, true)?.let { pinnedContent.addView(it) }
         }
-        
-        val dragListener = View.OnDragListener { v, event ->
-            when (event.action) {
-                android.view.DragEvent.ACTION_DROP -> {
-                    val actionId = event.clipData?.getItemAt(0)?.text?.toString() ?: return@OnDragListener false
-                    
-                    if (v == pinnedContent && !pinnedKeys.contains(actionId)) {
-                        expandedKeys.remove(actionId)
-                        pinnedKeys.add(actionId)
-                        com.example.keyboard.toolbar.ToolbarSettingsManager.savePinnedKeys(context, pinnedKeys)
-                        com.example.keyboard.toolbar.ToolbarSettingsManager.saveToolbarKeys(context, expandedKeys)
-                        populateToolbar(root, expandedContent, pinnedContent)
-                    } else if (v == expandedContent && !expandedKeys.contains(actionId)) {
-                        pinnedKeys.remove(actionId)
-                        expandedKeys.add(actionId)
-                        com.example.keyboard.toolbar.ToolbarSettingsManager.savePinnedKeys(context, pinnedKeys)
-                        com.example.keyboard.toolbar.ToolbarSettingsManager.saveToolbarKeys(context, expandedKeys)
-                        populateToolbar(root, expandedContent, pinnedContent)
-                    }
-                    v.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    true
-                }
-                android.view.DragEvent.ACTION_DRAG_ENTERED -> {
-                    v.setBackgroundColor(android.graphics.Color.parseColor("#33000000"))
-                    true
-                }
-                android.view.DragEvent.ACTION_DRAG_EXITED, android.view.DragEvent.ACTION_DRAG_ENDED -> {
-                    v.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    true
-                }
-                else -> true
-            }
-        }
-        
-        pinnedContent.setOnDragListener(dragListener)
-        expandedContent.setOnDragListener(dragListener)
     }
     
     private fun handleToolbarAction(actionId: String) {
@@ -313,16 +282,59 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 }
                 startActivity(intent)
             }
-            "SELECT_ALL" -> currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
+            "SELECT_ALL" -> sendSelectAll()
             "PASTE" -> currentInputConnection?.performContextMenuAction(android.R.id.paste)
             "CLIPBOARD" -> toggleClipboardModal()
             "ENTER" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_ENTER)
             "COPY" -> currentInputConnection?.performContextMenuAction(android.R.id.copy)
             "CUT" -> currentInputConnection?.performContextMenuAction(android.R.id.cut)
+            "UNDO" -> currentInputConnection?.performContextMenuAction(android.R.id.undo)
+            "REDO" -> currentInputConnection?.performContextMenuAction(android.R.id.redo)
             "LEFT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
             "RIGHT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
             "UP" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_UP)
             "DOWN" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+            "CLEAR_CLIP" -> {
+                coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    clipboardRepository.deleteAllUnpinned()
+                }
+                android.widget.Toast.makeText(this, "Unpinned clipboard items cleared", android.widget.Toast.LENGTH_SHORT).show()
+                if (isClipboardModalOpen) {
+                    toggleClipboardModal()
+                }
+            }
+            "SELECT_WORD" -> {
+                val ic = currentInputConnection
+                if (ic != null) {
+                    val extracted = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                    if (extracted != null && extracted.text != null) {
+                        val pos = extracted.selectionStart
+                        val text = extracted.text
+                        var start = pos
+                        var end = pos
+                        while (start > 0 && text[start - 1].isLetterOrDigit()) {
+                            start--
+                        }
+                        while (end < text.length && text[end].isLetterOrDigit()) {
+                            end++
+                        }
+                        ic.setSelection(start, end)
+                    }
+                }
+            }
+            "VOICE_INPUT" -> {
+                try {
+                    val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(this, "Voice input not supported", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            "EMOJI" -> {
+                android.widget.Toast.makeText(this, "Emoji coming soon", android.widget.Toast.LENGTH_SHORT).show()
+            }
             "INCOGNITO" -> {
                 isManualIncognito = !isManualIncognito
                 updateIncognitoStateUI()
@@ -705,7 +717,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             }
             "ONE_HAND" -> { /* TODO */ }
             "CLIPBOARD" -> { /* TODO */ }
-            "SELECT_ALL" -> inputConnection.performContextMenuAction(android.R.id.selectAll)
+            "SELECT_ALL" -> sendSelectAll()
             "COPY" -> inputConnection.performContextMenuAction(android.R.id.copy)
             "PASTE" -> inputConnection.performContextMenuAction(android.R.id.paste)
             "CUT" -> inputConnection.performContextMenuAction(android.R.id.cut)
@@ -780,6 +792,29 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 updateSuggestions()
             }
         }
+    }
+
+    private fun sendSelectAll() {
+        val ic = currentInputConnection
+        ic?.performContextMenuAction(android.R.id.selectAll)
+        
+        // Desktop Shortcut Select All (Ctrl+A)
+        val metaState = android.view.KeyEvent.META_CTRL_ON or android.view.KeyEvent.META_CTRL_LEFT_ON
+        val eventTime = android.os.SystemClock.uptimeMillis()
+        val downEvent = android.view.KeyEvent(
+            eventTime, eventTime, android.view.KeyEvent.ACTION_DOWN,
+            android.view.KeyEvent.KEYCODE_A, 0, metaState,
+            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+            android.view.KeyEvent.FLAG_SOFT_KEYBOARD or android.view.KeyEvent.FLAG_KEEP_TOUCH_MODE
+        )
+        val upEvent = android.view.KeyEvent(
+            eventTime, android.os.SystemClock.uptimeMillis(), android.view.KeyEvent.ACTION_UP,
+            android.view.KeyEvent.KEYCODE_A, 0, metaState,
+            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+            android.view.KeyEvent.FLAG_SOFT_KEYBOARD or android.view.KeyEvent.FLAG_KEEP_TOUCH_MODE
+        )
+        ic?.sendKeyEvent(downEvent)
+        ic?.sendKeyEvent(upEvent)
     }
 
     override fun onLongPressEnter() {

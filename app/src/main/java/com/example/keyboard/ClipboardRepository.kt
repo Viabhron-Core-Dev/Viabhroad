@@ -25,6 +25,10 @@ class ClipboardRepository(private val clipboardDao: ClipboardDao) {
         clipboardDao.delete(item)
     }
 
+    fun deleteAllUnpinned() {
+        clipboardDao.deleteAllUnpinned()
+    }
+
     private fun trimUnpinned() {
         val maxUnpinnedCount = 20
         val currentUnpinnedCount = clipboardDao.getUnpinnedCount()

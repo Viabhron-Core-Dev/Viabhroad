@@ -18,7 +18,6 @@ object ToolbarSettingsManager {
     val ALL_ACTIONS = listOf(
         ToolbarAction("VOICE_INPUT", "Voice input", R.drawable.ic_mic),
         ToolbarAction("CLIPBOARD", "Clipboard", R.drawable.ic_clipboard),
-        ToolbarAction("NUMPAD", "Numpad", R.drawable.ic_numpad),
         ToolbarAction("UNDO", "Undo", R.drawable.ic_undo),
         ToolbarAction("REDO", "Redo", R.drawable.ic_redo),
         ToolbarAction("SETTINGS", "Settings", R.drawable.ic_settings),
@@ -28,8 +27,6 @@ object ToolbarSettingsManager {
         ToolbarAction("CUT", "Cut", R.drawable.ic_cut),
         ToolbarAction("PASTE", "Paste", R.drawable.ic_paste),
         ToolbarAction("ENTER", "Enter", R.drawable.ic_enter),
-        ToolbarAction("ONE_HANDED", "One-handed mode", R.drawable.ic_one_handed),
-        ToolbarAction("SPLIT", "Split keyboard", R.drawable.ic_split_keyboard),
         ToolbarAction("INCOGNITO", "Force incognito mode", R.drawable.ic_incognito_on),
         ToolbarAction("EMOJI", "Emoji", R.drawable.ic_emoji_emoticons),
         ToolbarAction("LEFT", "Left", R.drawable.ic_arrow_left),
@@ -42,7 +39,7 @@ object ToolbarSettingsManager {
     // Default Pinned
     private val DEFAULT_PINNED = listOf("ENTER", "PASTE")
     // Default Expanded (the items in the toolbar popup)
-    private val DEFAULT_TOOLBAR = listOf("VOICE_INPUT", "CLIPBOARD", "NUMPAD", "UNDO", "REDO", "SETTINGS", "SELECT_ALL", "SELECT_WORD", "COPY", "CUT", "PASTE", "ONE_HANDED")
+    private val DEFAULT_TOOLBAR = listOf("VOICE_INPUT", "CLIPBOARD", "UNDO", "REDO", "SETTINGS", "SELECT_ALL", "SELECT_WORD", "COPY", "CUT", "PASTE")
 
     fun getPinnedKeys(context: Context): List<String> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

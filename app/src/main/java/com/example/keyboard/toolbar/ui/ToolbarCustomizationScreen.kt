@@ -6,8 +6,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -120,19 +121,45 @@ fun ToolbarKeyEditorScreen(
                         .fillMaxWidth()
                         .weight(1f, fill = false)
                 ) {
-                    items(orderedActions, key = { it.id }) { action ->
+                    items(orderedActions.size, key = { orderedActions[it].id }) { index ->
+                        val action = orderedActions[index]
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 8.dp)
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
                         ) {
-                            Icon(
-                                androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_drag_indicator),
-                                contentDescription = "Drag to reorder",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                IconButton(
+                                    onClick = {
+                                        if (index > 0) {
+                                            val newList = orderedActions.toMutableList()
+                                            val temp = newList[index - 1]
+                                            newList[index - 1] = newList[index]
+                                            newList[index] = temp
+                                            orderedActions = newList
+                                        }
+                                    },
+                                    enabled = index > 0
+                                ) {
+                                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up")
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (index < orderedActions.size - 1) {
+                                            val newList = orderedActions.toMutableList()
+                                            val temp = newList[index + 1]
+                                            newList[index + 1] = newList[index]
+                                            newList[index] = temp
+                                            orderedActions = newList
+                                        }
+                                    },
+                                    enabled = index < orderedActions.size - 1
+                                ) {
+                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down")
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Icon(
                                 androidx.compose.ui.res.painterResource(id = action.iconResId),
                                 contentDescription = action.name,
