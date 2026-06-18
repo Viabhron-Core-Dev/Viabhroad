@@ -219,8 +219,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         
         btnIncognito = null // Reset ref
         
-        val buttonSize = (40 * context.resources.displayMetrics.density).toInt()
-        val marginEnd = (4 * context.resources.displayMetrics.density).toInt()
+        val buttonSize = (36 * context.resources.displayMetrics.density).toInt()
+        val marginEnd = 0
         
         fun createButton(actionId: String, isPinned: Boolean): android.widget.ImageButton? {
             val action = com.example.keyboard.toolbar.ToolbarSettingsManager.ALL_ACTIONS.find { it.id == actionId } ?: return null
@@ -288,8 +288,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "ENTER" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_ENTER)
             "COPY" -> currentInputConnection?.performContextMenuAction(android.R.id.copy)
             "CUT" -> currentInputConnection?.performContextMenuAction(android.R.id.cut)
-            "UNDO" -> currentInputConnection?.performContextMenuAction(android.R.id.undo)
-            "REDO" -> currentInputConnection?.performContextMenuAction(android.R.id.redo)
+            "UNDO" -> sendUndo()
+            "REDO" -> sendRedo()
             "LEFT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
             "RIGHT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
             "UP" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_UP)
@@ -721,8 +721,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "COPY" -> inputConnection.performContextMenuAction(android.R.id.copy)
             "PASTE" -> inputConnection.performContextMenuAction(android.R.id.paste)
             "CUT" -> inputConnection.performContextMenuAction(android.R.id.cut)
-            "UNDO" -> inputConnection.performContextMenuAction(android.R.id.undo)
-            "REDO" -> inputConnection.performContextMenuAction(android.R.id.redo)
+            "UNDO" -> sendUndo()
+            "REDO" -> sendRedo()
             "DIR_UP" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_UP)
             "DIR_DOWN" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
             "DIR_LEFT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
@@ -792,6 +792,52 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 updateSuggestions()
             }
         }
+    }
+
+    private fun sendUndo() {
+        val ic = currentInputConnection
+        ic?.performContextMenuAction(android.R.id.undo)
+        
+        // Desktop Shortcut Undo (Ctrl+Z)
+        val metaState = android.view.KeyEvent.META_CTRL_ON or android.view.KeyEvent.META_CTRL_LEFT_ON
+        val eventTime = android.os.SystemClock.uptimeMillis()
+        val downEvent = android.view.KeyEvent(
+            eventTime, eventTime, android.view.KeyEvent.ACTION_DOWN,
+            android.view.KeyEvent.KEYCODE_Z, 0, metaState,
+            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+            android.view.KeyEvent.FLAG_SOFT_KEYBOARD or android.view.KeyEvent.FLAG_KEEP_TOUCH_MODE
+        )
+        val upEvent = android.view.KeyEvent(
+            eventTime, android.os.SystemClock.uptimeMillis(), android.view.KeyEvent.ACTION_UP,
+            android.view.KeyEvent.KEYCODE_Z, 0, metaState,
+            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+            android.view.KeyEvent.FLAG_SOFT_KEYBOARD or android.view.KeyEvent.FLAG_KEEP_TOUCH_MODE
+        )
+        ic?.sendKeyEvent(downEvent)
+        ic?.sendKeyEvent(upEvent)
+    }
+
+    private fun sendRedo() {
+        val ic = currentInputConnection
+        ic?.performContextMenuAction(android.R.id.redo)
+        
+        // Desktop Shortcut Redo (Ctrl+Y / Ctrl+Shift+Z, let's use Ctrl+Shift+Z)
+        val metaState = android.view.KeyEvent.META_CTRL_ON or android.view.KeyEvent.META_CTRL_LEFT_ON or android.view.KeyEvent.META_SHIFT_ON or android.view.KeyEvent.META_SHIFT_LEFT_ON
+        val eventTime = android.os.SystemClock.uptimeMillis()
+        val downEvent = android.view.KeyEvent(
+            eventTime, eventTime, android.view.KeyEvent.ACTION_DOWN,
+            android.view.KeyEvent.KEYCODE_Z, 0, metaState,
+            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+            android.view.KeyEvent.FLAG_SOFT_KEYBOARD or android.view.KeyEvent.FLAG_KEEP_TOUCH_MODE
+        )
+        val upEvent = android.view.KeyEvent(
+            eventTime, android.os.SystemClock.uptimeMillis(), android.view.KeyEvent.ACTION_UP,
+            android.view.KeyEvent.KEYCODE_Z, 0, metaState,
+            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+            android.view.KeyEvent.FLAG_SOFT_KEYBOARD or android.view.KeyEvent.FLAG_KEEP_TOUCH_MODE
+        )
+        ic?.sendKeyEvent(downEvent)
+        ic?.sendKeyEvent(upEvent)
     }
 
     private fun sendSelectAll() {

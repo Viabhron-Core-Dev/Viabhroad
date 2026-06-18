@@ -33,7 +33,7 @@ object ToolbarSettingsManager {
         ToolbarAction("RIGHT", "Right", R.drawable.ic_chevron_right),
         ToolbarAction("UP", "Up", R.drawable.ic_arrow_up),
         ToolbarAction("DOWN", "Down", R.drawable.ic_arrow_down),
-        ToolbarAction("CLEAR_CLIP", "Clear clipboard", R.drawable.ic_bin)
+        ToolbarAction("CLEAR_CLIP", "Clear clipboard", R.drawable.ic_clear_clipboard)
     )
     
     // Default Pinned

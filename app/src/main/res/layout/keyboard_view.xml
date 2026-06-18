@@ -27,8 +27,8 @@
             <!-- Chevron -->
             <ImageButton
                 android:id="@+id/btn_toolbar_chevron"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_chevron_right"
                 android:contentDescription="Expand Toolbar" />
@@ -123,21 +123,21 @@
                 
                 <ImageButton
                     android:id="@+id/btn_toolbar_enter"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_enter"
-                    android:padding="8dp"
+                    android:padding="6dp"
                     android:scaleType="centerInside"
                     android:contentDescription="Next Line" />
                 
                 <ImageButton
                     android:id="@+id/btn_toolbar_paste"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_clipboard"
-                    android:padding="8dp"
+                    android:padding="6dp"
                     android:scaleType="centerInside"
                     android:contentDescription="Paste Menu" />
             </LinearLayout>
