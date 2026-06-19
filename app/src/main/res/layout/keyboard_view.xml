@@ -164,28 +164,27 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="#EBEDF0"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:visibility="gone">
             
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/clipboard_recycler"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:padding="8dp"
-                android:clipToPadding="false" />
-                
-            <View
-                android:layout_width="1dp"
-                android:layout_height="match_parent"
-                android:background="#D0D3D8" />
-                
+            <!-- Toolbar-like header for Clipboard -->
             <LinearLayout
-                android:layout_width="56dp"
-                android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:paddingVertical="8dp"
-                android:gravity="center_horizontal">
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical|end"
+                android:paddingHorizontal="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Clipboard"
+                    android:textStyle="bold"
+                    android:textColor="#333333"
+                    android:textSize="16sp"
+                    android:layout_marginStart="8dp" />
+                
+                <Space android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"/>
                 
                 <ImageButton
                     android:id="@+id/btn_clipboard_clear"
@@ -196,31 +195,76 @@
                     android:padding="12dp"
                     android:scaleType="centerInside"
                     android:contentDescription="Clear Clipboard" />
-                    
-                <Space
-                    android:layout_width="wrap_content"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/clipboard_recycler"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:padding="4dp"
+                android:clipToPadding="false" />
+                
+            <!-- Bottom Keyboard Row for Clipboard -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="1dp"
+                android:gravity="bottom">
+                
+                <Button
+                    android:id="@+id/btn_clipboard_abc"
+                    android:layout_width="56dp"
+                    android:layout_height="48dp"
+                    android:layout_margin="3dp"
+                    android:background="@drawable/bg_clipboard_item"
+                    android:text="ABC"
+                    android:textColor="#333333"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:elevation="1dp"
+                    android:stateListAnimator="@null" />
                     
                 <ImageButton
-                    android:id="@+id/btn_clipboard_backspace"
-                    android:layout_width="48dp"
+                    android:id="@+id/btn_clipboard_space"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="48dp"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_backspace"
-                    android:padding="12dp"
-                    android:scaleType="centerInside"
-                    android:contentDescription="Backspace" />
+                    android:layout_margin="3dp"
+                    android:background="@drawable/bg_clipboard_item"
+                    android:elevation="1dp"
+                    android:stateListAnimator="@null"
+                    android:contentDescription="Space" />
+                   
+                <LinearLayout
+                    android:layout_width="56dp"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
                     
-                <ImageButton
-                    android:id="@+id/btn_clipboard_enter"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_enter"
-                    android:padding="12dp"
-                    android:scaleType="centerInside"
-                    android:contentDescription="Enter / Action" />
+                    <ImageButton
+                        android:id="@+id/btn_clipboard_backspace"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_margin="3dp"
+                        android:background="@drawable/bg_clipboard_item"
+                        android:src="@drawable/ic_backspace"
+                        android:scaleType="centerInside"
+                        android:padding="14dp"
+                        android:elevation="1dp" />
+                        
+                    <ImageButton
+                        android:id="@+id/btn_clipboard_enter"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_margin="3dp"
+                        android:background="@drawable/bg_clipboard_item"
+                        android:src="@drawable/ic_enter"
+                        android:scaleType="centerInside"
+                        android:padding="14dp"
+                        android:elevation="1dp" />
+                </LinearLayout>
+
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>

@@ -121,7 +121,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     
     private fun setupClipboard(root: View) {
         val recycler = root.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.clipboard_recycler)
-        recycler.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        recycler.layoutManager = androidx.recyclerview.widget.StaggeredGridLayoutManager(2, androidx.recyclerview.widget.StaggeredGridLayoutManager.VERTICAL)
         
         clipboardAdapter = ClipboardAdapter(
             onItemClicked = { item ->
@@ -136,7 +136,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         )
         recycler.adapter = clipboardAdapter
         
-        // Sidebar buttons
+        // Bottom/Sidebar actions
+        root.findViewById<android.view.View>(R.id.btn_clipboard_abc)?.setOnClickListener {
+            toggleClipboardModal()
+        }
+        root.findViewById<android.view.View>(R.id.btn_clipboard_space)?.setOnClickListener {
+            sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_SPACE)
+        }
         root.findViewById<android.view.View>(R.id.btn_clipboard_clear)?.setOnClickListener {
             coroutineScope.launch(Dispatchers.IO) {
                 clipboardRepository.deleteAllUnpinned()

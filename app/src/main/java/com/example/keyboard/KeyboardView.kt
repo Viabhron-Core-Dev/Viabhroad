@@ -558,6 +558,7 @@ class KeyboardView @JvmOverloads constructor(
                     accentPopupWindow?.isTouchable = false
                     accentPopupWindow?.isFocusable = false
                     accentPopupWindow?.isOutsideTouchable = false
+                    accentPopupWindow?.isClippingEnabled = false
                     accentPopupWindow?.setBackgroundDrawable(null)
                     accentPopupWindow?.elevation = 10f
                 }
