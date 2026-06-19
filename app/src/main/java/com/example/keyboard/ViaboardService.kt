@@ -184,6 +184,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         val clipboardContainer = mainView?.findViewById<android.widget.LinearLayout>(R.id.clipboard_container) ?: return
         
         if (isClipboardModalOpen) {
+            coroutineScope.launch(Dispatchers.IO) {
+                clipboardRepository.cleanup()
+            }
             keyboardView.visibility = View.GONE
             clipboardContainer.visibility = View.VISIBLE
         } else {

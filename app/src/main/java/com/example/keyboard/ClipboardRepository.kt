@@ -13,7 +13,7 @@ class ClipboardRepository(private val clipboardDao: ClipboardDao) {
             clipboardDao.insert(existing.copy(timestamp = System.currentTimeMillis()))
         } else {
             clipboardDao.insert(ClipboardItem(text = text))
-            trimUnpinned()
+            cleanup()
         }
     }
 
@@ -29,7 +29,11 @@ class ClipboardRepository(private val clipboardDao: ClipboardDao) {
         clipboardDao.deleteAllUnpinned()
     }
 
-    private fun trimUnpinned() {
+    fun cleanup() {
+        // Time limit: delete items older than 1 hour
+        val oneHourAgo = System.currentTimeMillis() - (60 * 60 * 1000)
+        clipboardDao.deleteOldUnpinned(oneHourAgo)
+
         val maxUnpinnedCount = 20
         val currentUnpinnedCount = clipboardDao.getUnpinnedCount()
         if (currentUnpinnedCount > maxUnpinnedCount) {
