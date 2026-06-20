@@ -533,11 +533,7 @@ class KeyboardView @JvmOverloads constructor(
                 if (startX < 0) startX = 5f
                 if (startX + totalWidth > width) startX = width - totalWidth - 5f
                 
-                // make it pop up closer to the key to avoid hitting the toolbar
-                var popupY = key.y - totalHeight - 5f
-                if (popupY < 0f) {
-                    popupY = 5f // avoid clipping at the top
-                }
+                var popupY = key.y - totalHeight - 15f
                 
                 accentPopupRect = RectF(startX, popupY, startX + totalWidth, popupY + totalHeight)
                 

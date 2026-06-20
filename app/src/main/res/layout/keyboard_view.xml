@@ -254,7 +254,6 @@
                 android:layout_height="match_parent"
                 android:layout_above="@id/clipboard_bottom_row"
                 android:padding="4dp"
-                android:paddingBottom="56dp"
                 android:clipToPadding="false" />
 
         </RelativeLayout>

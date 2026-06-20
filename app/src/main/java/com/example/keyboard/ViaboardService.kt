@@ -420,7 +420,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             }
         }
 
-        val clipboardContainer = mainView?.findViewById<android.widget.LinearLayout>(R.id.clipboard_container)
+        val clipboardContainer = mainView?.findViewById<android.view.View>(R.id.clipboard_container)
         val keyboardView = mainView?.findViewById<com.example.keyboard.KeyboardView>(R.id.keyboard_view)
         clipboardContainer?.visibility = android.view.View.GONE
         keyboardView?.visibility = android.view.View.VISIBLE
