@@ -561,6 +561,9 @@ class KeyboardView @JvmOverloads constructor(
                     accentPopupWindow?.isClippingEnabled = false
                     accentPopupWindow?.setBackgroundDrawable(null)
                     accentPopupWindow?.elevation = 10f
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        accentPopupWindow?.windowLayoutType = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
+                    }
                 }
 
                 val pView = popupView
@@ -570,7 +573,7 @@ class KeyboardView @JvmOverloads constructor(
                     pWindow.height = Math.ceil(totalHeight.toDouble()).toInt() + 10
                     // Provide screen coordinates
                     val location = IntArray(2)
-                    getLocationInWindow(location)
+                    getLocationOnScreen(location)
                     val winX = location[0] + startX.toInt()
                     val winY = location[1] + popupY.toInt()
 

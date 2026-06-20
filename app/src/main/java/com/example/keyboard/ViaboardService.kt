@@ -143,7 +143,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         root.findViewById<android.view.View>(R.id.btn_clipboard_space)?.setOnClickListener {
             sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_SPACE)
         }
-        root.findViewById<android.view.View>(R.id.btn_clipboard_clear)?.setOnClickListener {
+        root.findViewById<android.view.View>(R.id.btn_clipboard_clear_pinned)?.setOnClickListener {
             coroutineScope.launch(Dispatchers.IO) {
                 clipboardRepository.deleteAllUnpinned()
             }
@@ -181,7 +181,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private fun toggleClipboardModal() {
         isClipboardModalOpen = !isClipboardModalOpen
         val keyboardView = mainView?.findViewById<KeyboardView>(R.id.keyboard_view) ?: return
-        val clipboardContainer = mainView?.findViewById<android.widget.LinearLayout>(R.id.clipboard_container) ?: return
+        val clipboardContainer = mainView?.findViewById<android.view.View>(R.id.clipboard_container) ?: return
+        val btnClearPinned = mainView?.findViewById<android.view.View>(R.id.btn_clipboard_clear_pinned)
         
         if (isClipboardModalOpen) {
             coroutineScope.launch(Dispatchers.IO) {
@@ -189,9 +190,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             }
             keyboardView.visibility = View.GONE
             clipboardContainer.visibility = View.VISIBLE
+            btnClearPinned?.visibility = View.VISIBLE
         } else {
             clipboardContainer.visibility = View.GONE
             keyboardView.visibility = View.VISIBLE
+            btnClearPinned?.visibility = View.GONE
         }
     }
 
