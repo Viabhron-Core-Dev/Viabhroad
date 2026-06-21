@@ -142,7 +142,7 @@ class KeyboardView @JvmOverloads constructor(
             val previewHeight = trackerRect.height() * 1.25f
             
             var previewX = trackerRect.centerX() - (previewWidth / 2)
-            val previewY = trackerRect.top - previewHeight + 15f
+            val previewY = trackerRect.top - previewHeight - 40f
             
             view.previewRect = RectF(0f, 0f, previewWidth, previewHeight)
             width = Math.ceil(previewWidth.toDouble()).toInt() + 10
@@ -560,16 +560,16 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun getAccentsForKey(key: String): List<String> {
         return when (key.lowercase()) {
-            "1" -> emptyList()
-            "2" -> emptyList()
-            "3" -> emptyList()
-            "4" -> emptyList()
-            "5" -> emptyList()
-            "6" -> emptyList()
-            "7" -> emptyList()
-            "8" -> emptyList()
-            "9" -> emptyList()
-            "0" -> emptyList()
+            "1" -> listOf("¹", "½", "⅓", "¼", "⅛")
+            "2" -> listOf("²", "⅔")
+            "3" -> listOf("³", "¾", "⅜")
+            "4" -> listOf("⁴")
+            "5" -> listOf("⅝")
+            "6" -> listOf("⁶")
+            "7" -> listOf("⅞")
+            "8" -> listOf("⁸")
+            "9" -> listOf("⁹")
+            "0" -> listOf("ⁿ", "∅")
             "q" -> listOf("%")
             "w" -> listOf("\\")
             "e" -> listOf("|", "é", "è", "ê")
@@ -644,10 +644,10 @@ class KeyboardView @JvmOverloads constructor(
                 val totalHeight = popupItemHeight * rows
                 
                 var startX = key.x + (key.width / 2) - (totalWidth / 2)
-                if (startX < 0) startX = 5f
+                if (startX < 0f) startX = 5f
                 if (startX + totalWidth > width) startX = width - totalWidth - 5f
                 
-                var popupY = key.y - totalHeight - 15f
+                var popupY = key.y - totalHeight - 40f
                 
                 accentPopupRect = RectF(startX, popupY, startX + totalWidth, popupY + totalHeight)
                 
