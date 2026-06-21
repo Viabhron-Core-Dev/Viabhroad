@@ -106,7 +106,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         mainView = root
         
         val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view)
+        val popupLayer = root.findViewById<PopupLayerView>(R.id.popup_layer)
         keyboardView.listener = this
+        keyboardView.setPopupLayerView(popupLayer)
         
         // Parse and set the XML layout
         val parser = KeyboardParser(this)

@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
     android:fitsSystemWindows="true"
-    android:clipChildren="false"
-    android:clipToPadding="false"
     android:background="#EBEDF0">
 
     <!-- Tool Bar / Suggestion Bar -->
@@ -13,8 +10,7 @@
         android:id="@+id/toolbar_container"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:clipChildren="false"
-        android:clipToPadding="false"
+        android:layout_alignParentTop="true"
         android:background="#EBEDF0">
 
         <LinearLayout
@@ -23,6 +19,7 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="4dp">
+
 
             <!-- Chevron -->
             <ImageButton
@@ -157,16 +154,16 @@
 
     <!-- Content Area -->
     <FrameLayout
+        android:id="@+id/content_area"
         android:layout_width="match_parent"
-        android:layout_height="260dp">
+        android:layout_height="260dp"
+        android:layout_below="@id/toolbar_container">
         
         <!-- Custom Drawn Keyboard Grid -->
         <com.example.keyboard.KeyboardView
             android:id="@+id/keyboard_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:clipChildren="false"
-            android:clipToPadding="false"
             android:background="#EBEDF0" />
             
         <!-- Clipboard History Container -->
@@ -258,4 +255,13 @@
 
         </RelativeLayout>
     </FrameLayout>
-</LinearLayout>
+    
+    <!-- Popup Layer View -->
+    <com.example.keyboard.PopupLayerView
+        android:id="@+id/popup_layer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignTop="@id/toolbar_container"
+        android:layout_alignBottom="@id/content_area"
+        android:elevation="10dp" />
+</RelativeLayout>

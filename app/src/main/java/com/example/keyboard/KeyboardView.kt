@@ -35,32 +35,42 @@ class KeyboardView @JvmOverloads constructor(
     private var hoveredAccentIndex = -1
     private var accentPopupRect = RectF()
 
-    private inner class AccentPopupView(context: Context) : View(context) {
-        override fun onDraw(canvas: Canvas) {
-            super.onDraw(canvas)
-            val dx = -accentPopupRect.left
-            val dy = -accentPopupRect.top
+    private var popupLayer: PopupLayerView? = null
 
-            val localRect = RectF(0f, 0f, accentPopupRect.width(), accentPopupRect.height())
-            canvas.drawRoundRect(localRect, cornerRadius, cornerRadius, accentPopupPaint)
-            canvas.drawRoundRect(localRect, cornerRadius, cornerRadius, accentPopupShadowPaint)
+    fun setPopupLayerView(layer: PopupLayerView?) {
+        popupLayer = layer
+        popupLayer?.onDrawCallback = { canvas ->
+            if (isAccentPopupVisible) {
+                // Offset since popup_layer is root aligned, and keyboard_view is in content_area
+                // Actually content_area is mapped via View.getGlobalVisibleRect or we can just translate
+                // Let's get the relative offset of keyboardView to popupLayer
+                val kLoc = IntArray(2)
+                val pLoc = IntArray(2)
+                getLocationInWindow(kLoc)
+                popupLayer?.getLocationInWindow(pLoc)
+                val dy = kLoc[1] - pLoc[1]
+                val dx = kLoc[0] - pLoc[0]
+                
+                canvas.save()
+                canvas.translate(dx.toFloat(), dy.toFloat())
 
-            for ((index, optionData) in accentOptionRects.withIndex()) {
-                val (option, rect) = optionData
-                val localOptionRect = RectF(rect.left + dx, rect.top + dy, rect.right + dx, rect.bottom + dy)
+                canvas.drawRoundRect(accentPopupRect, cornerRadius, cornerRadius, accentPopupShadowPaint)
+                canvas.drawRoundRect(accentPopupRect, cornerRadius, cornerRadius, accentPopupPaint)
 
-                if (index == hoveredAccentIndex) {
-                    canvas.drawRoundRect(localOptionRect, cornerRadius, cornerRadius, accentHoverPaint)
+                for ((index, optionData) in accentOptionRects.withIndex()) {
+                    val (option, rect) = optionData
+                    if (index == hoveredAccentIndex) {
+                        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, accentHoverPaint)
+                    }
+
+                    val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
+                    canvas.drawText(getLabelForAccentCode(option), rect.centerX(), textY, textPaint)
                 }
-
-                val textY = localOptionRect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
-                canvas.drawText(getLabelForAccentCode(option), localOptionRect.centerX(), textY, textPaint)
+                
+                canvas.restore()
             }
         }
     }
-
-    private var accentPopupWindow: android.widget.PopupWindow? = null
-    private var popupView: AccentPopupView? = null
 
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -307,7 +317,8 @@ class KeyboardView @JvmOverloads constructor(
                     }
                 }
                 if (prevHoverIndex != hoveredAccentIndex) {
-                    popupView?.invalidate()
+                    this@KeyboardView.invalidate()
+                    popupLayer?.invalidate()
                 }
                 return
             }
@@ -370,9 +381,8 @@ class KeyboardView @JvmOverloads constructor(
             isAccentPopupVisible = false
             hoveredAccentIndex = -1
             activePopupTracker = null
-            accentPopupWindow?.dismiss()
-            popupView = null
-            accentPopupWindow = null
+            this@KeyboardView.invalidate()
+            popupLayer?.invalidate()
         }
 
         fun onUp() {
@@ -548,36 +558,8 @@ class KeyboardView @JvmOverloads constructor(
                     )
                 }
 
-                if (accentPopupWindow == null) {
-                    popupView = AccentPopupView(context)
-                    accentPopupWindow = android.widget.PopupWindow(popupView, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
-                    accentPopupWindow?.isTouchable = false
-                    accentPopupWindow?.isFocusable = false
-                    accentPopupWindow?.isOutsideTouchable = false
-                    accentPopupWindow?.isClippingEnabled = false
-                    accentPopupWindow?.setBackgroundDrawable(null)
-                    accentPopupWindow?.elevation = 10f
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                        accentPopupWindow?.windowLayoutType = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
-                    }
-                }
-
-                val pView = popupView
-                val pWindow = accentPopupWindow
-                if (pView != null && pWindow != null) {
-                    pWindow.width = Math.ceil(totalWidth.toDouble()).toInt() + 10
-                    pWindow.height = Math.ceil(totalHeight.toDouble()).toInt() + 10
-                    // Provide screen coordinates
-                    val location = IntArray(2)
-                    getLocationOnScreen(location)
-                    val winX = location[0] + startX.toInt()
-                    val winY = location[1] + popupY.toInt()
-
-                    pView.invalidate()
-                    pWindow.showAtLocation(this, android.view.Gravity.NO_GRAVITY, winX, winY)
-                }
-
                 invalidate()
+                popupLayer?.invalidate()
             }
         }
     }
