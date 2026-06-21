@@ -35,39 +35,130 @@ class KeyboardView @JvmOverloads constructor(
     private var hoveredAccentIndex = -1
     private var accentPopupRect = RectF()
 
-    private var popupLayer: PopupLayerView? = null
+    private var accentPopupWindow: AccentPopupWindow? = null
 
-    fun setPopupLayerView(layer: PopupLayerView?) {
-        popupLayer = layer
-        popupLayer?.onDrawCallback = { canvas ->
-            if (isAccentPopupVisible) {
-                // Offset since popup_layer is root aligned, and keyboard_view is in content_area
-                // Actually content_area is mapped via View.getGlobalVisibleRect or we can just translate
-                // Let's get the relative offset of keyboardView to popupLayer
-                val kLoc = IntArray(2)
-                val pLoc = IntArray(2)
-                getLocationInWindow(kLoc)
-                popupLayer?.getLocationInWindow(pLoc)
-                val dy = kLoc[1] - pLoc[1]
-                val dx = kLoc[0] - pLoc[0]
-                
-                canvas.save()
-                canvas.translate(dx.toFloat(), dy.toFloat())
+    private inner class AccentPopupView(context: Context) : View(context) {
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            if (!isAccentPopupVisible) return
+            
+            val dx = -accentPopupRect.left
+            val dy = -accentPopupRect.top
 
-                canvas.drawRoundRect(accentPopupRect, cornerRadius, cornerRadius, accentPopupShadowPaint)
-                canvas.drawRoundRect(accentPopupRect, cornerRadius, cornerRadius, accentPopupPaint)
+            val localRect = RectF(0f, 0f, accentPopupRect.width(), accentPopupRect.height())
+            canvas.drawRoundRect(localRect, cornerRadius, cornerRadius, accentPopupShadowPaint)
+            canvas.drawRoundRect(localRect, cornerRadius, cornerRadius, accentPopupPaint)
 
-                for ((index, optionData) in accentOptionRects.withIndex()) {
-                    val (option, rect) = optionData
-                    if (index == hoveredAccentIndex) {
-                        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, accentHoverPaint)
-                    }
+            for ((index, optionData) in accentOptionRects.withIndex()) {
+                val (option, rect) = optionData
+                val localOptionRect = RectF(rect.left + dx, rect.top + dy, rect.right + dx, rect.bottom + dy)
 
-                    val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
-                    canvas.drawText(getLabelForAccentCode(option), rect.centerX(), textY, textPaint)
+                if (index == hoveredAccentIndex) {
+                    canvas.drawRoundRect(localOptionRect, cornerRadius, cornerRadius, accentHoverPaint)
                 }
-                
-                canvas.restore()
+
+                val textY = localOptionRect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
+                canvas.drawText(getLabelForAccentCode(option), localOptionRect.centerX(), textY, textPaint)
+            }
+        }
+    }
+
+    private inner class AccentPopupWindow(context: Context) : android.widget.PopupWindow(context) {
+        val view = AccentPopupView(context)
+        init {
+            contentView = view
+            isTouchable = false
+            isFocusable = false
+            isOutsideTouchable = false
+            isClippingEnabled = false
+            setBackgroundDrawable(null)
+            elevation = 10f
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                windowLayoutType = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
+            }
+        }
+        
+        fun showForOptions() {
+            width = Math.ceil(accentPopupRect.width().toDouble()).toInt() + 10
+            height = Math.ceil(accentPopupRect.height().toDouble()).toInt() + 10
+            
+            val location = IntArray(2)
+            getLocationOnScreen(location)
+            var winX = location[0] + accentPopupRect.left.toInt()
+            var winY = location[1] + accentPopupRect.top.toInt()
+            
+            view.invalidate()
+            if (!isShowing) {
+                showAtLocation(this@KeyboardView, android.view.Gravity.NO_GRAVITY, winX, winY)
+            } else {
+                update(winX, winY, width, height)
+            }
+        }
+    }
+
+    private inner class KeyPreviewView(context: Context) : View(context) {
+        var key: Key? = null
+        var previewRect: RectF = RectF()
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            val pKey = key ?: return
+            
+            val shadowRect = RectF(2f, 2f, previewRect.right - 2f, previewRect.bottom - 2f)
+            
+            canvas.drawRoundRect(shadowRect, cornerRadius * 1.2f, cornerRadius * 1.2f, shadowPaint)
+            canvas.drawRoundRect(previewRect, cornerRadius * 1.2f, cornerRadius * 1.2f, previewBgPaint)
+            
+            val oldSize = textPaint.textSize
+            textPaint.textSize = oldSize * 1.5f
+            val textY = previewRect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
+            canvas.drawText(pKey.label, previewRect.centerX(), textY, textPaint)
+            textPaint.textSize = oldSize
+        }
+    }
+
+    private inner class KeyPreviewPopupWindow(context: Context) : android.widget.PopupWindow(context) {
+        val view = KeyPreviewView(context)
+        init {
+            contentView = view
+            isTouchable = false
+            isFocusable = false
+            isOutsideTouchable = false
+            isClippingEnabled = false
+            setBackgroundDrawable(null)
+            elevation = 10f
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                windowLayoutType = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
+            }
+        }
+        
+        fun showForKey(key: Key?, trackerRect: RectF) {
+            val pKey = key
+            if (pKey == null) {
+                dismiss()
+                return
+            }
+            view.key = pKey
+            val previewWidth = trackerRect.width() * 1.3f
+            val previewHeight = trackerRect.height() * 1.25f
+            
+            var previewX = trackerRect.centerX() - (previewWidth / 2)
+            val previewY = trackerRect.top - previewHeight + 15f
+            
+            view.previewRect = RectF(0f, 0f, previewWidth, previewHeight)
+            width = Math.ceil(previewWidth.toDouble()).toInt() + 10
+            height = Math.ceil(previewHeight.toDouble()).toInt() + 10
+            
+            val location = IntArray(2)
+            getLocationOnScreen(location)
+            
+            val winX = location[0] + previewX.toInt()
+            val winY = location[1] + previewY.toInt()
+
+            view.invalidate()
+            if (!isShowing) {
+                showAtLocation(this@KeyboardView, android.view.Gravity.NO_GRAVITY, winX, winY)
+            } else {
+                update(winX, winY, width, height)
             }
         }
     }
@@ -162,6 +253,10 @@ class KeyboardView @JvmOverloads constructor(
         }
     }
 
+    override fun invalidate() {
+        super.invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val kbd = keyboard ?: return
@@ -232,30 +327,15 @@ class KeyboardView @JvmOverloads constructor(
             }
         }
 
-        // Draw key previews
-        for (i in 0 until activePointers.size()) {
-            val tracker = activePointers.valueAt(i)
-            if (tracker.isPressedValid && !isAccentPopupVisible) {
-                val pKey = tracker.pressedKey
-                if (pKey != null && !pKey.isFunctional && pKey.label.length == 1 && pKey.codes.length == 1 && pKey.codes != "SPACE") {
-                    val rect = RectF(
-                        pKey.x + keyMarginHorizontal,
-                        pKey.y + keyMarginVertical,
-                        pKey.x + pKey.width - keyMarginHorizontal,
-                        pKey.y + pKey.height - keyMarginVertical
-                    )
-                    drawKeyPreview(canvas, pKey, rect)
-                }
-            }
-        }
+        // Now handled in PopupLayerView
     }
 
     private fun drawKeyPreview(canvas: Canvas, key: Key, keyRect: RectF) {
-        val previewWidth = keyRect.width() * 1.5f
-        val previewHeight = keyRect.height() * 1.4f
+        val previewWidth = keyRect.width() * 1.3f
+        val previewHeight = keyRect.height() * 1.25f
         
         var previewX = keyRect.centerX() - (previewWidth / 2)
-        val previewY = keyRect.top - previewHeight + 10f
+        val previewY = keyRect.top - previewHeight + 15f
         
         if (previewX < 5f) previewX = 5f
         if (previewX + previewWidth > width - 5f) previewX = width - previewWidth - 5f
@@ -287,6 +367,7 @@ class KeyboardView @JvmOverloads constructor(
         var isDeleteScrubbing = false
         var swipeStartX = 0f
         var lastScrubCursorDiff = 0
+        private var previewPopupWindow: KeyPreviewPopupWindow? = null
         
         private val longPressRunnable = Runnable { triggerLongPress(this) }
         
@@ -301,6 +382,7 @@ class KeyboardView @JvmOverloads constructor(
                 isDeleteScrubbing = false
                 handler.postDelayed(longPressRunnable, 400)
                 invalidate()
+                updatePreviewPopup()
             }
         }
         
@@ -318,7 +400,6 @@ class KeyboardView @JvmOverloads constructor(
                 }
                 if (prevHoverIndex != hoveredAccentIndex) {
                     this@KeyboardView.invalidate()
-                    popupLayer?.invalidate()
                 }
                 return
             }
@@ -372,17 +453,38 @@ class KeyboardView @JvmOverloads constructor(
                             isPressedValid = false
                         }
                         invalidate()
+                        updatePreviewPopup()
                     }
                 }
             }
+        }
+        
+        fun updatePreviewPopup() {
+            if (isPressedValid && pressedKey != null && !isAccentPopupVisible && !isSpaceScrubbing && !isDeleteScrubbing) {
+                val pKey = pressedKey!!
+                if (!pKey.isFunctional && pKey.label.length == 1 && pKey.codes.length == 1 && pKey.codes != "SPACE") {
+                    if (previewPopupWindow == null) {
+                        previewPopupWindow = KeyPreviewPopupWindow(context)
+                    }
+                    val rect = RectF(
+                        pKey.x + keyMarginHorizontal,
+                        pKey.y + keyMarginVertical,
+                        pKey.x + pKey.width - keyMarginHorizontal,
+                        pKey.y + pKey.height - keyMarginVertical
+                    )
+                    previewPopupWindow?.showForKey(pKey, rect)
+                    return
+                }
+            }
+            previewPopupWindow?.dismiss()
         }
         
         private fun dismissAccentPopup() {
             isAccentPopupVisible = false
             hoveredAccentIndex = -1
             activePopupTracker = null
+            accentPopupWindow?.dismiss()
             this@KeyboardView.invalidate()
-            popupLayer?.invalidate()
         }
 
         fun onUp() {
@@ -403,6 +505,7 @@ class KeyboardView @JvmOverloads constructor(
             isSpaceScrubbing = false
             isDeleteScrubbing = false
             invalidate()
+            updatePreviewPopup()
         }
         
         fun onCancel() {
@@ -415,6 +518,7 @@ class KeyboardView @JvmOverloads constructor(
             isSpaceScrubbing = false
             isDeleteScrubbing = false
             invalidate()
+            updatePreviewPopup()
         }
     }
 
@@ -558,8 +662,12 @@ class KeyboardView @JvmOverloads constructor(
                     )
                 }
 
+                if (accentPopupWindow == null) {
+                    accentPopupWindow = AccentPopupWindow(context)
+                }
+                accentPopupWindow?.showForOptions()
+                tracker.updatePreviewPopup()
                 invalidate()
-                popupLayer?.invalidate()
             }
         }
     }
