@@ -1,3 +1,5 @@
+import java.net.URL
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -105,4 +107,23 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+}
+
+tasks.register("downloadDictionaries") {
+  doLast {
+    val rawDir = file("src/main/res/raw")
+    rawDir.mkdirs()
+
+    val google10k = file("src/main/res/raw/google_10k_english.txt")
+    if (!google10k.exists()) {
+      val url = URL("https://raw.githubusercontent.com/first20hours/google-10000-english/master/google-10000-english.txt")
+      google10k.writeText(url.readText())
+    }
+
+    val hermitDave50k = file("src/main/res/raw/hermit_dave_en_50k.txt")
+    if (!hermitDave50k.exists()) {
+      val url = URL("https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_50k.txt")
+      hermitDave50k.writeText(url.readText())
+    }
+  }
 }

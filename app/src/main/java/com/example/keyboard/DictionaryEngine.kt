@@ -3,6 +3,7 @@ package com.example.keyboard
 import android.content.Context
 import kotlinx.coroutines.*
 import java.io.InputStream
+import com.example.R
 
 class DictionaryEngine(private val context: Context) {
     
@@ -20,24 +21,81 @@ class DictionaryEngine(private val context: Context) {
     }
 
     init {
-        // We could load a default basic dictionary from raw/assets here.
-        // For now, it will start empty or populated with some common words
-        loadBasicWords()
+        loadDefaultDictionary()
     }
     
-    private fun loadBasicWords() {
-        val commonWords = listOf(
-            "the", "be", "to", "of", "and", "a", "in", "that", "have", "I",
-            "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-            "this", "but", "his", "by", "from", "they", "we", "say", "her", "she",
-            "or", "an", "will", "my", "one", "all", "would", "there", "their", "what",
-            "so", "up", "out", "if", "about", "who", "get", "which", "go", "me",
-            "yes", "no", "hello", "good", "bad", "time", "day", "night", "like", "just",
-            "now", "how", "come", "see", "think", "look", "want", "give", "use", "find",
-            "tell", "ask", "work", "seem", "feel", "try", "leave", "call", "keep"
-        )
-        for ((index, word) in commonWords.withIndex()) {
-            insertWord(word, frequency = commonWords.size - index) // Higher freq for earlier words
+    private fun loadDefaultDictionary() {
+        // Load the basic dict from raw resources
+        try {
+            val basicStream = context.resources.openRawResource(R.raw.basic_dict)
+            loadTextDictionary(basicStream)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Load Google 10k English Words
+        try {
+            val google10kStream = context.resources.openRawResource(R.raw.google_10k_english)
+            loadTextDictionary(google10kStream)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Load Hermit Dave's Frequency Words (50k)
+        try {
+            val hermitDaveStream = context.resources.openRawResource(R.raw.hermit_dave_en_50k)
+            loadTextDictionary(hermitDaveStream)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
+        // Also load any imported text dictionaries from internal storage
+        loadImportedDictionaries()
+    }
+
+    private fun loadImportedDictionaries() {
+        scope.launch {
+            try {
+                val importsDir = java.io.File(context.filesDir, "imported_dicts")
+                if (importsDir.exists() && importsDir.isDirectory) {
+                    importsDir.listFiles()?.forEach { file ->
+                        if (file.extension == "txt" && file.isFile) {
+                            loadTextDictionary(file.inputStream())
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // Parses a generic text dictionary file. 
+    // Supports either plain words (one per line) or word + frequency.
+    fun loadTextDictionary(inputStream: InputStream) {
+        scope.launch {
+            try {
+                var maxFreq = 50000 // Assuming lines are sorted by frequency descending (e.g. Google 10k)
+                inputStream.bufferedReader().useLines { lines ->
+                    for (line in lines) {
+                        val cleanLine = line.trim()
+                        if (cleanLine.isBlank() || cleanLine.startsWith("#")) continue
+                        
+                        val parts = cleanLine.split("\\s+".toRegex())
+                        val word = parts[0]
+                        val freq = if (parts.size > 1) {
+                            parts[1].toIntOrNull() ?: maxFreq
+                        } else {
+                            maxFreq
+                        }
+                        
+                        insertWord(word, frequency = freq)
+                        if (maxFreq > 1) maxFreq--
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
