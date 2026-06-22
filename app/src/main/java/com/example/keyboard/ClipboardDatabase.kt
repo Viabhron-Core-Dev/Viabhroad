@@ -5,10 +5,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [ClipboardItem::class], version = 1, exportSchema = false)
+@Database(entities = [ClipboardItem::class, PersonalDictionaryItem::class], version = 2, exportSchema = false)
 abstract class ClipboardDatabase : RoomDatabase() {
 
     abstract fun clipboardDao(): ClipboardDao
+    abstract fun personalDictionaryDao(): PersonalDictionaryDao
 
     companion object {
         @Volatile

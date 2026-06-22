@@ -22,7 +22,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private lateinit var logKeeper: TheLogKeeper
     private var mainView: View? = null
     
-    private lateinit var wordRepository: WordRepository
+    private lateinit var dictionaryEngine: DictionaryEngine
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var suggestionJob: Job? = null
     
@@ -38,7 +38,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var lastSpaceTime = 0L
     private var currentWord = StringBuilder()
     private var previousWord: String? = null
-    private var currentSuggestions = emptyList<com.example.data.WordEntity>()
+    private var currentSuggestions = emptyList<String>()
     
     private var tvSuggestion1: android.widget.TextView? = null
     private var tvSuggestion2: android.widget.TextView? = null
@@ -83,7 +83,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         logKeeper = TheLogKeeper.getInstance(this)
         logKeeper.log("INFO", "ViaboardService", "Service Created (View-based)")
         
-        wordRepository = WordRepository(AppDatabase.getDatabase(this).wordDao())
+        dictionaryEngine = DictionaryEngine(this)
         clipboardRepository = ClipboardRepository(ClipboardDatabase.getDatabase(this).clipboardDao())
     }
 
@@ -408,10 +408,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         }
         
         coroutineScope.launch {
-            wordRepository.addWord(finalWord)
-            prevToSave?.let { prev ->
-                wordRepository.addBigram(prev, finalWord)
-            }
+            // Learn new word dynamically
+            dictionaryEngine.insertWord(finalWord)
             updateSuggestions()
         }
     }
@@ -615,29 +613,16 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         }
         
         if (prefix.isBlank()) {
-            val prev = previousWord
-            if (prev != null) {
-                suggestionJob = coroutineScope.launch {
-                    wordRepository.getNextWordSuggestions(prev).collect { list ->
-                        currentSuggestions = list
-                        tvSuggestion1?.text = list.getOrNull(0)?.word ?: ""
-                        tvSuggestion2?.text = list.getOrNull(1)?.word ?: ""
-                        tvSuggestion3?.text = list.getOrNull(2)?.word ?: ""
-                    }
-                }
-            } else {
-                clearSuggestions()
-            }
+            clearSuggestions()
             return
         }
 
         suggestionJob = coroutineScope.launch {
-            wordRepository.getSuggestions(prefix).collect { list ->
-                currentSuggestions = list
-                tvSuggestion1?.text = list.getOrNull(0)?.word ?: ""
-                tvSuggestion2?.text = list.getOrNull(1)?.word ?: ""
-                tvSuggestion3?.text = list.getOrNull(2)?.word ?: ""
-            }
+            val list = dictionaryEngine.getSuggestions(prefix, 3)
+            currentSuggestions = list
+            tvSuggestion1?.text = list.getOrNull(0) ?: ""
+            tvSuggestion2?.text = list.getOrNull(1) ?: ""
+            tvSuggestion3?.text = list.getOrNull(2) ?: ""
         }
     }
 
@@ -727,8 +712,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                     return
                 }
 
-                if (isAutocorrectEnabled && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].word != currentWord.toString().lowercase()) {
-                    val topWordText = currentSuggestions[0].word
+                if (isAutocorrectEnabled && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].lowercase() != currentWord.toString().lowercase()) {
+                    val topWordText = currentSuggestions[0]
                     val isCapitalized = currentWord[0].isUpperCase()
                     val topWord = if (isCapitalized) {
                         topWordText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }

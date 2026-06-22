@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DictionarySettingsScreen(onClose: () -> Unit) {
+fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -> Unit) {
     var autoCorrectAggressiveness by remember { mutableStateOf(0.5f) }
 
     Scaffold(
@@ -78,7 +78,7 @@ fun DictionarySettingsScreen(onClose: () -> Unit) {
             Text("Personal Dictionary", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
             Button(
-                onClick = { /* TODO: Open personal dictionary manager */ },
+                onClick = onOpenPersonalDictionary,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Manage Custom Words")

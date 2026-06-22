@@ -19,6 +19,7 @@ sealed class SettingsRoute {
     object Main : SettingsRoute()
     object ToolbarCustomization : SettingsRoute()
     object DictionarySettings : SettingsRoute()
+    object PersonalDictionary : SettingsRoute()
     object LogKeeper : SettingsRoute()
 }
 
@@ -81,7 +82,13 @@ class SettingsActivity : ComponentActivity() {
                             com.example.keyboard.toolbar.ui.ToolbarCustomizationScreen(onClose = { currentRoute = SettingsRoute.Main })
                         }
                         is SettingsRoute.DictionarySettings -> {
-                            DictionarySettingsScreen(onClose = { currentRoute = SettingsRoute.Main })
+                            DictionarySettingsScreen(
+                                onClose = { currentRoute = SettingsRoute.Main },
+                                onOpenPersonalDictionary = { currentRoute = SettingsRoute.PersonalDictionary }
+                            )
+                        }
+                        is SettingsRoute.PersonalDictionary -> {
+                            PersonalDictionaryScreen(onClose = { currentRoute = SettingsRoute.DictionarySettings })
                         }
                         is SettingsRoute.LogKeeper -> {
                             LogKeeperScreen(onClose = { currentRoute = SettingsRoute.Main })
