@@ -209,50 +209,15 @@
             android:background="#EBEDF0"
             android:visibility="gone">
             
-            <!-- Bottom Right vertical layout for Backspace and Enter -->
-            <LinearLayout
-                android:id="@+id/clipboard_right_col"
-                android:layout_width="56dp"
-                android:layout_height="wrap_content"
-                android:layout_alignParentBottom="true"
-                android:layout_alignParentEnd="true"
-                android:orientation="vertical"
-                android:paddingBottom="1dp"
-                android:paddingEnd="1dp">
-                
-                <ImageButton
-                    android:id="@+id/btn_clipboard_backspace"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_margin="3dp"
-                    android:background="@drawable/bg_clipboard_item"
-                    android:src="@drawable/ic_backspace"
-                    android:scaleType="centerInside"
-                    android:padding="14dp"
-                    android:elevation="1dp" />
-                    
-                <ImageButton
-                    android:id="@+id/btn_clipboard_enter"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_margin="3dp"
-                    android:background="@drawable/bg_clipboard_item"
-                    android:src="@drawable/ic_enter"
-                    android:scaleType="centerInside"
-                    android:padding="14dp"
-                    android:elevation="1dp" />
-            </LinearLayout>
-            
-            <!-- Bottom ABC and Space buttons -->
+            <!-- Bottom Action Row -->
             <LinearLayout
                 android:id="@+id/clipboard_bottom_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignParentBottom="true"
-                android:layout_toStartOf="@id/clipboard_right_col"
                 android:orientation="horizontal"
                 android:paddingBottom="1dp"
-                android:paddingStart="1dp"
+                android:paddingHorizontal="1dp"
                 android:gravity="bottom">
                 
                 <Button
@@ -278,6 +243,28 @@
                     android:elevation="1dp"
                     android:stateListAnimator="@null"
                     android:contentDescription="Space" />
+
+                <ImageButton
+                    android:id="@+id/btn_clipboard_backspace"
+                    android:layout_width="56dp"
+                    android:layout_height="48dp"
+                    android:layout_margin="3dp"
+                    android:background="@drawable/bg_clipboard_item"
+                    android:src="@drawable/ic_backspace"
+                    android:scaleType="centerInside"
+                    android:padding="14dp"
+                    android:elevation="1dp" />
+                    
+                <ImageButton
+                    android:id="@+id/btn_clipboard_enter"
+                    android:layout_width="56dp"
+                    android:layout_height="48dp"
+                    android:layout_margin="3dp"
+                    android:background="@drawable/bg_clipboard_item"
+                    android:src="@drawable/ic_enter"
+                    android:scaleType="centerInside"
+                    android:padding="14dp"
+                    android:elevation="1dp" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView

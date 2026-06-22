@@ -29,6 +29,54 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
     
     val scope = rememberCoroutineScope()
     
+    val tfliteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val modelDir = File(context.filesDir, "transformer")
+                        if (!modelDir.exists()) modelDir.mkdirs()
+                        val destinationFile = File(modelDir, "model.tflite")
+                        context.contentResolver.openInputStream(it)?.use { input ->
+                            destinationFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                    }
+                    Toast.makeText(context, "Transformer model imported!", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Failed to import model: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val vocabLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val modelDir = File(context.filesDir, "transformer")
+                        if (!modelDir.exists()) modelDir.mkdirs()
+                        val destinationFile = File(modelDir, "vocab.txt")
+                        context.contentResolver.openInputStream(it)?.use { input ->
+                            destinationFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                    }
+                    Toast.makeText(context, "Vocabulary file imported!", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Failed to import vocab: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     val textDictLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -132,15 +180,48 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
                 onClick = { textDictLauncher.launch(arrayOf("text/plain")) },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Import Text Dictionary (.txt)")
+                Text("Import Basic Text Dictionary (.txt)")
             }
             
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text("Transformer Model (Advanced)", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = { /* TODO: Launch file picker to load transformer */ },
-                modifier = Modifier.fillMaxWidth()
+            
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Text("Import Lightweight Transformer Model (.tflite)")
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "To use the Transformer Engine, you must import a TensorFlow Lite model (.tflite) and its vocabulary file (.txt).",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "We recommend models around 20MB for optimal mobile keyboard performance. Once imported, you can toggle the engine on.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { tfliteLauncher.launch(arrayOf("*/*")) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Import .tflite")
+                }
+                OutlinedButton(
+                    onClick = { vocabLauncher.launch(arrayOf("text/plain")) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Import Vocab")
+                }
             }
             
             Spacer(modifier = Modifier.height(24.dp))
