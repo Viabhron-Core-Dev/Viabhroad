@@ -43,6 +43,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var tvSuggestion1: android.widget.TextView? = null
     private var tvSuggestion2: android.widget.TextView? = null
     private var tvSuggestion3: android.widget.TextView? = null
+    private var suggestionPaste: android.view.View? = null
+    private var suggestionPasteDivider: android.view.View? = null
     private var btnIncognito: android.widget.ImageButton? = null
     private var toolbarContainer: android.view.View? = null
     
@@ -210,10 +212,16 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         tvSuggestion1 = root.findViewById(R.id.suggestion_1)
         tvSuggestion2 = root.findViewById(R.id.suggestion_2)
         tvSuggestion3 = root.findViewById(R.id.suggestion_3)
+        suggestionPaste = root.findViewById(R.id.suggestion_paste)
+        suggestionPasteDivider = root.findViewById(R.id.suggestion_paste_divider)
         
         tvSuggestion1?.setOnClickListener { onSuggestionClicked(tvSuggestion1?.text.toString()) }
         tvSuggestion2?.setOnClickListener { onSuggestionClicked(tvSuggestion2?.text.toString()) }
         tvSuggestion3?.setOnClickListener { onSuggestionClicked(tvSuggestion3?.text.toString()) }
+        suggestionPaste?.setOnClickListener {
+            currentInputConnection?.performContextMenuAction(android.R.id.paste)
+            updateSuggestions()
+        }
         
         btnChevron.setOnClickListener {
             isToolbarExpanded = !isToolbarExpanded
@@ -502,6 +510,10 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             tvSuggestion1?.setTextColor(android.graphics.Color.WHITE)
             tvSuggestion2?.setTextColor(android.graphics.Color.WHITE)
             tvSuggestion3?.setTextColor(android.graphics.Color.WHITE)
+            mainView?.findViewById<android.view.ViewGroup>(R.id.suggestion_paste)?.let { 
+                (it.getChildAt(1) as? android.widget.TextView)?.setTextColor(android.graphics.Color.WHITE)
+                (it.getChildAt(0) as? android.widget.ImageView)?.setColorFilter(android.graphics.Color.WHITE)
+            }
             
             // Set button icons to white tint
             val whiteColor = android.graphics.Color.WHITE
@@ -529,6 +541,10 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             tvSuggestion1?.setTextColor(darkGray)
             tvSuggestion2?.setTextColor(darkGray)
             tvSuggestion3?.setTextColor(darkGray)
+            mainView?.findViewById<android.view.ViewGroup>(R.id.suggestion_paste)?.let { 
+                (it.getChildAt(1) as? android.widget.TextView)?.setTextColor(darkGray)
+                (it.getChildAt(0) as? android.widget.ImageView)?.setColorFilter(darkGray)
+            }
             
             // Reset button icons to dark gray tint
             mainView?.let { root ->
@@ -580,6 +596,23 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private fun updateSuggestions() {
         val prefix = currentWord.toString()
         suggestionJob?.cancel()
+        
+        var showPaste = false
+        val clip = clipboardManager?.primaryClip
+        if (clip != null && clip.itemCount > 0 && prefix.isEmpty()) {
+            val text = clip.getItemAt(0).text?.toString()
+            if (!text.isNullOrEmpty()) {
+                showPaste = true
+            }
+        }
+        
+        if (showPaste) {
+            suggestionPaste?.visibility = View.VISIBLE
+            suggestionPasteDivider?.visibility = View.VISIBLE
+        } else {
+            suggestionPaste?.visibility = View.GONE
+            suggestionPasteDivider?.visibility = View.GONE
+        }
         
         if (prefix.isBlank()) {
             val prev = previousWord

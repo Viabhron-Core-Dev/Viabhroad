@@ -18,6 +18,7 @@ import com.example.logkeeper.ui.LogKeeperScreen
 sealed class SettingsRoute {
     object Main : SettingsRoute()
     object ToolbarCustomization : SettingsRoute()
+    object DictionarySettings : SettingsRoute()
     object LogKeeper : SettingsRoute()
 }
 
@@ -51,6 +52,14 @@ class SettingsActivity : ComponentActivity() {
                                 ) {
                                     item {
                                         ListItem(
+                                            headlineContent = { Text("Dictionary & Prediction") },
+                                            supportingContent = { Text("Configure dictionary and auto-correct") },
+                                            modifier = Modifier.clickable { currentRoute = SettingsRoute.DictionarySettings }
+                                        )
+                                        HorizontalDivider()
+                                    }
+                                    item {
+                                        ListItem(
                                             headlineContent = { Text("Toolbar Customization") },
                                             supportingContent = { Text("Customize the extra action toolbar") },
                                             modifier = Modifier.clickable { currentRoute = SettingsRoute.ToolbarCustomization }
@@ -70,6 +79,9 @@ class SettingsActivity : ComponentActivity() {
                         }
                         is SettingsRoute.ToolbarCustomization -> {
                             com.example.keyboard.toolbar.ui.ToolbarCustomizationScreen(onClose = { currentRoute = SettingsRoute.Main })
+                        }
+                        is SettingsRoute.DictionarySettings -> {
+                            DictionarySettingsScreen(onClose = { currentRoute = SettingsRoute.Main })
                         }
                         is SettingsRoute.LogKeeper -> {
                             LogKeeperScreen(onClose = { currentRoute = SettingsRoute.Main })

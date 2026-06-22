@@ -96,73 +96,6 @@ class KeyboardView @JvmOverloads constructor(
         }
     }
 
-    private inner class KeyPreviewView(context: Context) : View(context) {
-        var key: Key? = null
-        var previewRect: RectF = RectF()
-        override fun onDraw(canvas: Canvas) {
-            super.onDraw(canvas)
-            val pKey = key ?: return
-            
-            val shadowRect = RectF(2f, 2f, previewRect.right - 2f, previewRect.bottom - 2f)
-            
-            canvas.drawRoundRect(shadowRect, cornerRadius * 1.2f, cornerRadius * 1.2f, shadowPaint)
-            canvas.drawRoundRect(previewRect, cornerRadius * 1.2f, cornerRadius * 1.2f, previewBgPaint)
-            
-            val oldSize = textPaint.textSize
-            textPaint.textSize = oldSize * 1.5f
-            val textY = previewRect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
-            canvas.drawText(pKey.label, previewRect.centerX(), textY, textPaint)
-            textPaint.textSize = oldSize
-        }
-    }
-
-    private inner class KeyPreviewPopupWindow(context: Context) : android.widget.PopupWindow(context) {
-        val view = KeyPreviewView(context)
-        init {
-            contentView = view
-            isTouchable = false
-            isFocusable = false
-            isOutsideTouchable = false
-            isClippingEnabled = false
-            setBackgroundDrawable(null)
-            elevation = 10f
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                windowLayoutType = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
-            }
-        }
-        
-        fun showForKey(key: Key?, trackerRect: RectF) {
-            val pKey = key
-            if (pKey == null) {
-                dismiss()
-                return
-            }
-            view.key = pKey
-            val previewWidth = trackerRect.width() * 1.3f
-            val previewHeight = trackerRect.height() * 1.25f
-            
-            var previewX = trackerRect.centerX() - (previewWidth / 2)
-            val previewY = trackerRect.top - previewHeight - 40f
-            
-            view.previewRect = RectF(0f, 0f, previewWidth, previewHeight)
-            width = Math.ceil(previewWidth.toDouble()).toInt() + 10
-            height = Math.ceil(previewHeight.toDouble()).toInt() + 10
-            
-            val location = IntArray(2)
-            getLocationOnScreen(location)
-            
-            val winX = location[0] + previewX.toInt()
-            val winY = location[1] + previewY.toInt()
-
-            view.invalidate()
-            if (!isShowing) {
-                showAtLocation(this@KeyboardView, android.view.Gravity.NO_GRAVITY, winX, winY)
-            } else {
-                update(winX, winY, width, height)
-            }
-        }
-    }
-
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
@@ -202,16 +135,7 @@ class KeyboardView @JvmOverloads constructor(
         typeface = android.graphics.Typeface.DEFAULT
     }
 
-    private val previewBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = Color.WHITE
-    }
-    
-    private val previewTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#1C1E21")
-        textAlign = Paint.Align.CENTER
-        textSize = 90f
-    }
+
 
     private val keyMarginHorizontal = 5f
     private val keyMarginVertical = 6f
@@ -330,35 +254,7 @@ class KeyboardView @JvmOverloads constructor(
         // Now handled in PopupLayerView
     }
 
-    private fun drawKeyPreview(canvas: Canvas, key: Key, keyRect: RectF) {
-        val previewWidth = keyRect.width() * 1.3f
-        val previewHeight = keyRect.height() * 1.25f
-        
-        var previewX = keyRect.centerX() - (previewWidth / 2)
-        val previewY = keyRect.top - previewHeight + 15f
-        
-        if (previewX < 5f) previewX = 5f
-        if (previewX + previewWidth > width - 5f) previewX = width - previewWidth - 5f
 
-        val previewRect = RectF(
-            previewX,
-            previewY,
-            previewX + previewWidth,
-            previewY + previewHeight
-        )
-        
-        val shadowRect = RectF(
-            previewRect.left - 2f, 
-            previewRect.top, 
-            previewRect.right + 2f, 
-            previewRect.bottom + 8f
-        )
-        canvas.drawRoundRect(shadowRect, cornerRadius * 1.2f, cornerRadius * 1.2f, shadowPaint)
-        canvas.drawRoundRect(previewRect, cornerRadius * 1.2f, cornerRadius * 1.2f, previewBgPaint)
-        
-        val textY = previewRect.centerY() - ((previewTextPaint.descent() + previewTextPaint.ascent()) / 2)
-        canvas.drawText(key.label, previewRect.centerX(), textY, previewTextPaint)
-    }
 
     inner class PointerTracker(val pointerId: Int) {
         var pressedKey: Key? = null
@@ -367,7 +263,6 @@ class KeyboardView @JvmOverloads constructor(
         var isDeleteScrubbing = false
         var swipeStartX = 0f
         var lastScrubCursorDiff = 0
-        private var previewPopupWindow: KeyPreviewPopupWindow? = null
         
         private val longPressRunnable = Runnable { triggerLongPress(this) }
         
@@ -382,7 +277,6 @@ class KeyboardView @JvmOverloads constructor(
                 isDeleteScrubbing = false
                 handler.postDelayed(longPressRunnable, 400)
                 invalidate()
-                updatePreviewPopup()
             }
         }
         
@@ -453,30 +347,9 @@ class KeyboardView @JvmOverloads constructor(
                             isPressedValid = false
                         }
                         invalidate()
-                        updatePreviewPopup()
                     }
                 }
             }
-        }
-        
-        fun updatePreviewPopup() {
-            if (isPressedValid && pressedKey != null && !isAccentPopupVisible && !isSpaceScrubbing && !isDeleteScrubbing) {
-                val pKey = pressedKey!!
-                if (!pKey.isFunctional && pKey.label.length == 1 && pKey.codes.length == 1 && pKey.codes != "SPACE") {
-                    if (previewPopupWindow == null) {
-                        previewPopupWindow = KeyPreviewPopupWindow(context)
-                    }
-                    val rect = RectF(
-                        pKey.x + keyMarginHorizontal,
-                        pKey.y + keyMarginVertical,
-                        pKey.x + pKey.width - keyMarginHorizontal,
-                        pKey.y + pKey.height - keyMarginVertical
-                    )
-                    previewPopupWindow?.showForKey(pKey, rect)
-                    return
-                }
-            }
-            previewPopupWindow?.dismiss()
         }
         
         private fun dismissAccentPopup() {
@@ -505,7 +378,6 @@ class KeyboardView @JvmOverloads constructor(
             isSpaceScrubbing = false
             isDeleteScrubbing = false
             invalidate()
-            updatePreviewPopup()
         }
         
         fun onCancel() {
@@ -518,7 +390,6 @@ class KeyboardView @JvmOverloads constructor(
             isSpaceScrubbing = false
             isDeleteScrubbing = false
             invalidate()
-            updatePreviewPopup()
         }
     }
 
@@ -666,7 +537,6 @@ class KeyboardView @JvmOverloads constructor(
                     accentPopupWindow = AccentPopupWindow(context)
                 }
                 accentPopupWindow?.showForOptions()
-                tracker.updatePreviewPopup()
                 invalidate()
             }
         }
