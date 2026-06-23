@@ -50,6 +50,12 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var btnIncognito: android.widget.ImageButton? = null
     private var toolbarContainer: android.view.View? = null
     
+    private var tvSuggestionPasteText: android.widget.TextView? = null
+    private var btnSuggestionPasteClose: android.widget.ImageView? = null
+    private var clipboardLastDismissedText: String? = null
+    private var clipboardLastObservedText: String? = null
+    private var clipboardObservedTime: Long = 0L
+    
     // Clipboard feature
     private var isClipboardModalOpen = false
     private lateinit var clipboardRepository: ClipboardRepository
@@ -175,6 +181,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         if (clip != null && clip.itemCount > 0) {
             val text = clip.getItemAt(0).text?.toString()
             if (!text.isNullOrEmpty()) {
+                clipboardLastObservedText = text
+                clipboardObservedTime = System.currentTimeMillis()
+                clipboardLastDismissedText = null
+                
+                updateSuggestions()
                 coroutineScope.launch(Dispatchers.IO) {
                     clipboardRepository.insert(text)
                 }
@@ -218,12 +229,27 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         suggestionDivider2 = root.findViewById(R.id.suggestion_divider_2)
         suggestionPaste = root.findViewById(R.id.suggestion_paste)
         suggestionPasteDivider = root.findViewById(R.id.suggestion_paste_divider)
+        tvSuggestionPasteText = root.findViewById(R.id.tv_suggestion_paste_text)
+        btnSuggestionPasteClose = root.findViewById(R.id.btn_suggestion_paste_close)
         
         tvSuggestion1?.setOnClickListener { onSuggestionClicked(tvSuggestion1?.text.toString()) }
         tvSuggestion2?.setOnClickListener { onSuggestionClicked(tvSuggestion2?.text.toString()) }
         tvSuggestion3?.setOnClickListener { onSuggestionClicked(tvSuggestion3?.text.toString()) }
+        
+        // When clicking the main paste chip, we commit the text directly.
         suggestionPaste?.setOnClickListener {
-            currentInputConnection?.performContextMenuAction(android.R.id.paste)
+            val text = clipboardManager?.primaryClip?.getItemAt(0)?.text?.toString()
+            if (!text.isNullOrEmpty()) {
+                currentInputConnection?.commitText(text, 1)
+            }
+            // Once pasted, dismiss it so it doesn't stay
+            clipboardLastDismissedText = text
+            updateSuggestions()
+        }
+        
+        btnSuggestionPasteClose?.setOnClickListener {
+            val text = clipboardManager?.primaryClip?.getItemAt(0)?.text?.toString()
+            clipboardLastDismissedText = text
             updateSuggestions()
         }
         
@@ -603,8 +629,19 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         val clip = clipboardManager?.primaryClip
         if (clip != null && clip.itemCount > 0 && prefix.isEmpty()) {
             val text = clip.getItemAt(0).text?.toString()
-            if (!text.isNullOrEmpty()) {
-                showPaste = true
+            if (!text.isNullOrEmpty() && text != clipboardLastDismissedText) {
+                // Determine if clip was caught recently
+                if (text != clipboardLastObservedText) {
+                    // Clipboard changed while we weren't listening, or this is a new service instance
+                    clipboardLastObservedText = text
+                    clipboardObservedTime = System.currentTimeMillis()
+                }
+                
+                // Show only if within the last 5 minutes (300,000 ms)
+                if (System.currentTimeMillis() - clipboardObservedTime < 300_000L) {
+                    showPaste = true
+                    tvSuggestionPasteText?.text = text.replace("\n", " ")
+                }
             }
         }
         

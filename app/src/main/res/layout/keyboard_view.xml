@@ -61,28 +61,43 @@
                 
                 <LinearLayout
                     android:id="@+id/suggestion_paste"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1"
+                    android:layout_marginVertical="6dp"
+                    android:layout_marginHorizontal="8dp"
                     android:orientation="horizontal"
-                    android:gravity="center"
-                    android:background="?android:attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/bg_paste_chip"
+                    android:paddingHorizontal="16dp"
                     android:clickable="true"
                     android:focusable="true"
                     android:visibility="gone">
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
                         android:src="@drawable/ic_clipboard"
                         android:layout_marginEnd="8dp"
                         android:tint="#333333" />
                     <TextView
+                        android:id="@+id/tv_suggestion_paste_text"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Paste"
+                        android:layout_weight="1"
+                        android:maxWidth="250dp"
+                        android:singleLine="true"
+                        android:ellipsize="middle"
                         android:textColor="#333333"
-                        android:textSize="18sp"
+                        android:textSize="14sp"
                         android:textStyle="bold" />
+                    <ImageView
+                        android:id="@+id/btn_suggestion_paste_close"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginStart="8dp"
+                        android:src="@drawable/ic_close"
+                        android:padding="4dp"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:tint="#555555" />
                 </LinearLayout>
 
                 <View

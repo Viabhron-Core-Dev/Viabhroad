@@ -294,6 +294,7 @@ class KeyboardView @JvmOverloads constructor(
                 }
                 if (prevHoverIndex != hoveredAccentIndex) {
                     this@KeyboardView.invalidate()
+                    accentPopupWindow?.view?.invalidate()
                 }
                 return
             }
@@ -498,6 +499,14 @@ class KeyboardView @JvmOverloads constructor(
         } else {
             val options = getAccentsForKey(key.codes)
             if (options.isNotEmpty()) {
+                if (options.size == 1) {
+                    listener?.onKeyPress(options.first())
+                    tracker.pressedKey = null
+                    tracker.isPressedValid = false
+                    invalidate()
+                    return
+                }
+                
                 isAccentPopupVisible = true
                 activePopupTracker = tracker
                 accentOptions = options
