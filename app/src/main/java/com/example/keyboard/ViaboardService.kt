@@ -43,6 +43,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var tvSuggestion1: android.widget.TextView? = null
     private var tvSuggestion2: android.widget.TextView? = null
     private var tvSuggestion3: android.widget.TextView? = null
+    private var suggestionDivider1: android.view.View? = null
+    private var suggestionDivider2: android.view.View? = null
     private var suggestionPaste: android.view.View? = null
     private var suggestionPasteDivider: android.view.View? = null
     private var btnIncognito: android.widget.ImageButton? = null
@@ -212,6 +214,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         tvSuggestion1 = root.findViewById(R.id.suggestion_1)
         tvSuggestion2 = root.findViewById(R.id.suggestion_2)
         tvSuggestion3 = root.findViewById(R.id.suggestion_3)
+        suggestionDivider1 = root.findViewById(R.id.suggestion_divider_1)
+        suggestionDivider2 = root.findViewById(R.id.suggestion_divider_2)
         suggestionPaste = root.findViewById(R.id.suggestion_paste)
         suggestionPasteDivider = root.findViewById(R.id.suggestion_paste_divider)
         
@@ -606,7 +610,6 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         
         if (showPaste) {
             suggestionPaste?.visibility = View.VISIBLE
-            suggestionPasteDivider?.visibility = View.VISIBLE
         } else {
             suggestionPaste?.visibility = View.GONE
             suggestionPasteDivider?.visibility = View.GONE
@@ -614,15 +617,31 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         
         if (prefix.isBlank()) {
             clearSuggestions()
+            if (showPaste) {
+                suggestionPasteDivider?.visibility = View.GONE
+            }
             return
         }
 
         suggestionJob = coroutineScope.launch {
             val list = dictionaryEngine.getSuggestions(prefix, 3)
             currentSuggestions = list
+            
             tvSuggestion1?.text = list.getOrNull(0) ?: ""
+            tvSuggestion1?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+            
             tvSuggestion2?.text = list.getOrNull(1) ?: ""
+            tvSuggestion2?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
+            
             tvSuggestion3?.text = list.getOrNull(2) ?: ""
+            tvSuggestion3?.visibility = if (list.size > 2) View.VISIBLE else View.GONE
+            
+            suggestionDivider1?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
+            suggestionDivider2?.visibility = if (list.size > 2) View.VISIBLE else View.GONE
+            
+            if (showPaste) {
+                suggestionPasteDivider?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+            }
         }
     }
 
@@ -630,8 +649,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         suggestionJob?.cancel()
         currentSuggestions = emptyList()
         tvSuggestion1?.text = ""
+        tvSuggestion1?.visibility = View.GONE
         tvSuggestion2?.text = ""
+        tvSuggestion2?.visibility = View.GONE
         tvSuggestion3?.text = ""
+        tvSuggestion3?.visibility = View.GONE
+        suggestionDivider1?.visibility = View.GONE
+        suggestionDivider2?.visibility = View.GONE
     }
 
     private fun updateShiftState(force: ShiftState? = null) {

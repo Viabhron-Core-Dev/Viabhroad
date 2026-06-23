@@ -3,6 +3,7 @@ package com.example.keyboard
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,13 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             var currentRoute by remember { mutableStateOf<SettingsRoute>(SettingsRoute.Main) }
+
+            BackHandler(enabled = currentRoute != SettingsRoute.Main) {
+                currentRoute = when (currentRoute) {
+                    SettingsRoute.PersonalDictionary -> SettingsRoute.DictionarySettings
+                    else -> SettingsRoute.Main
+                }
+            }
 
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
