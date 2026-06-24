@@ -498,9 +498,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             word
         }
         
-        inputConnection.deleteSurroundingText(currentWord.length, 0)
+        inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
         inputConnection.commitText(finalWord + " ", 1)
         commitWord(word)
+        wordLengthBeforeCursor = 0
+        wordLengthAfterCursor = 0
     }
 
     private fun commitWord(word: String) {
@@ -563,9 +565,69 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         updateIncognitoStateUI()
     }
 
+    private var wordLengthBeforeCursor = 0
+    private var wordLengthAfterCursor = 0
+
+    private fun extractWordAtCursor() {
+        val ic = currentInputConnection ?: return
+        
+        if (isIncognitoActive()) {
+            currentWord.clear()
+            wordLengthBeforeCursor = 0
+            wordLengthAfterCursor = 0
+            clearSuggestions()
+            return
+        }
+
+        val textBefore = ic.getTextBeforeCursor(50, 0) ?: ""
+        val textAfter = ic.getTextAfterCursor(50, 0) ?: ""
+        
+        var beforeIndex = textBefore.length - 1
+        while (beforeIndex >= 0 && textBefore[beforeIndex].isLetter()) {
+            beforeIndex--
+        }
+        val wordBefore = textBefore.substring(beforeIndex + 1)
+        
+        var afterIndex = 0
+        while (afterIndex < textAfter.length && textAfter[afterIndex].isLetter()) {
+            afterIndex++
+        }
+        val wordAfter = textAfter.substring(0, afterIndex)
+        
+        val fullWord = wordBefore + wordAfter
+        
+        if (fullWord.isNotEmpty()) {
+            val hasChanged = fullWord != currentWord.toString()
+            currentWord.clear()
+            currentWord.append(fullWord)
+            wordLengthBeforeCursor = wordBefore.length
+            wordLengthAfterCursor = wordAfter.length
+            if (hasChanged) {
+                updateSuggestions()
+            }
+        } else {
+            if (currentWord.isNotEmpty()) {
+                currentWord.clear()
+                wordLengthBeforeCursor = 0
+                wordLengthAfterCursor = 0
+                clearSuggestions()
+            }
+        }
+    }
+
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         updateShiftState()
+        
+        if (newSelStart != newSelEnd) {
+            currentWord.clear()
+            wordLengthBeforeCursor = 0
+            wordLengthAfterCursor = 0
+            clearSuggestions()
+            return
+        }
+        
+        extractWordAtCursor()
     }
 
     private fun isIncognitoActive(): Boolean {
@@ -847,8 +909,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                     clearSuggestions()
                 } else {
                     sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
-                    if (currentWord.isNotEmpty()) {
-                        currentWord.deleteCharAt(currentWord.length - 1)
+                    if (currentWord.isNotEmpty() && wordLengthBeforeCursor > 0) {
+                        currentWord.deleteCharAt(wordLengthBeforeCursor - 1)
+                        wordLengthBeforeCursor--
                         updateSuggestions()
                     }
                 }
@@ -875,10 +938,12 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                     } else {
                         topWordText
                     }
-                    inputConnection.deleteSurroundingText(currentWord.length, 0)
+                    inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
                     inputConnection.commitText(topWord + " ", 1)
                     commitWord(topWordText)
                     lastSpaceTime = now
+                    wordLengthBeforeCursor = 0
+                    wordLengthAfterCursor = 0
                 } else {
                     inputConnection.commitText(" ", 1)
                     if (currentWord.isNotEmpty()) {
@@ -943,10 +1008,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 }
                 
                 if (finalKey.length == 1 && finalKey[0].isLetter()) {
-                    currentWord.append(finalKey)
+                    currentWord.insert(wordLengthBeforeCursor, finalKey)
+                    wordLengthBeforeCursor += finalKey.length
                     updateSuggestions()
                 } else {
                     currentWord.clear()
+                    wordLengthBeforeCursor = 0
+                    wordLengthAfterCursor = 0
                     clearSuggestions()
                 }
             }
@@ -984,8 +1052,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         if (deleteCount > 0) {
             inputConnection.deleteSurroundingText(deleteCount, 0)
             if (currentWord.isNotEmpty()) {
-                val deleteFromWord = kotlin.math.min(deleteCount, currentWord.length)
-                currentWord.delete(currentWord.length - deleteFromWord, currentWord.length)
+                val deleteFromWord = kotlin.math.min(deleteCount, wordLengthBeforeCursor)
+                currentWord.delete(wordLengthBeforeCursor - deleteFromWord, wordLengthBeforeCursor)
+                wordLengthBeforeCursor -= deleteFromWord
                 updateSuggestions()
             }
         }
