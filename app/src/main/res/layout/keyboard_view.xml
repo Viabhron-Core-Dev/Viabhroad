@@ -304,5 +304,63 @@
                 android:clipToPadding="false" />
 
         </RelativeLayout>
+
+        <!-- Emoji Container -->
+        <LinearLayout
+            android:id="@+id/emoji_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="#EBEDF0"
+            android:visibility="gone">
+            
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/emoji_recycler"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:padding="4dp"
+                android:clipToPadding="false" />
+                
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:background="#FFFFFF"
+                android:gravity="center_vertical"
+                android:elevation="4dp">
+                
+                <!-- ABC Button inside Emoji Keyboard bottom bar -->
+                <Button
+                    android:id="@+id/btn_emoji_abc"
+                    android:layout_width="48dp"
+                    android:layout_height="match_parent"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:text="ABC"
+                    android:textColor="#333333"
+                    android:textStyle="bold"
+                    android:contentDescription="Alphabet" />
+                    
+                <HorizontalScrollView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:scrollbars="none">
+                    <LinearLayout
+                        android:id="@+id/emoji_category_container"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+                
+                <ImageButton
+                    android:id="@+id/btn_emoji_backspace"
+                    android:layout_width="48dp"
+                    android:layout_height="match_parent"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:src="@drawable/ic_backspace"
+                    android:contentDescription="Backspace" />
+            </LinearLayout>
+        </LinearLayout>
     </FrameLayout>
 </LinearLayout>

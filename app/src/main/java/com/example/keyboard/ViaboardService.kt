@@ -38,6 +38,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var lastSpaceTime = 0L
     private var currentWord = StringBuilder()
     private var previousWord: String? = null
+    private var prevPrevWord: String? = null
     private var currentSuggestions = emptyList<String>()
     
     private var tvSuggestion1: android.widget.TextView? = null
@@ -60,6 +61,10 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private var isClipboardModalOpen = false
     private lateinit var clipboardRepository: ClipboardRepository
     private var clipboardAdapter: ClipboardAdapter? = null
+    
+    // Emoji feature
+    private var isEmojiModalOpen = false
+    private var emojiAdapter: com.example.keyboard.EmojiAdapter? = null
     private var clipboardManager: android.content.ClipboardManager? = null
     private val clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
         onPrimaryClipChanged()
@@ -190,6 +195,75 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                     clipboardRepository.insert(text)
                 }
             }
+        }
+    }
+    
+    private fun toggleEmojiModal(open: Boolean? = null) {
+        if (open != null) {
+            isEmojiModalOpen = open
+        } else {
+            isEmojiModalOpen = !isEmojiModalOpen
+        }
+        
+        val keyboardView = mainView?.findViewById<KeyboardView>(R.id.keyboard_view) ?: return
+        val emojiContainer = mainView?.findViewById<android.view.View>(R.id.emoji_container) ?: return
+        
+        if (isEmojiModalOpen) {
+            // Hide keyboard, show emoji container
+            keyboardView.visibility = android.view.View.GONE
+            emojiContainer.visibility = android.view.View.VISIBLE
+            
+            // Set up recycler view
+            val recycler = mainView?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.emoji_recycler)
+            if (recycler?.adapter == null) {
+                recycler?.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 7)
+                emojiAdapter = EmojiAdapter(getSmileysEmojis()) { emoji ->
+                    currentInputConnection?.commitText(emoji, 1)
+                }
+                recycler?.adapter = emojiAdapter
+                
+                mainView?.findViewById<android.view.View>(R.id.btn_emoji_abc)?.setOnClickListener {
+                    toggleEmojiModal(false)
+                }
+                mainView?.findViewById<android.view.View>(R.id.btn_emoji_backspace)?.setOnClickListener {
+                    sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
+                }
+                
+                setupEmojiCategories()
+            }
+        } else {
+            // Show keyboard, hide emoji container
+            keyboardView.visibility = android.view.View.VISIBLE
+            emojiContainer.visibility = android.view.View.GONE
+        }
+    }
+    
+    private fun getSmileysEmojis(): List<String> {
+        return listOf(
+            "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "🥲", "☺️", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😮‍💨", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤫", "🤭", "🥱", "🤗", "🫣", "🤔", "🫡", "🤐", "🤨", "😐", "😑", "😶", "😶‍🌫️", "😏", "😒", "🙄", "😬", "😮", "😦", "😧", "😲", "🥱", "😴", "🤤", "😪", "😵", "😵‍💫", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾"
+        )
+    }
+    
+    private fun setupEmojiCategories() {
+        val container = mainView?.findViewById<android.widget.LinearLayout>(R.id.emoji_category_container) ?: return
+        container.removeAllViews()
+        
+        val categories = listOf(
+            Pair("ic_emoji_smileys_emotion", "Smileys")
+            // Can add more later
+        )
+        
+        for (cat in categories) {
+            val resId = resources.getIdentifier(cat.first, "drawable", packageName)
+            val ib = android.widget.ImageButton(this).apply {
+                layoutParams = android.widget.LinearLayout.LayoutParams(120, android.view.ViewGroup.LayoutParams.MATCH_PARENT)
+                setImageResource(resId)
+                setBackgroundResource(android.R.attr.selectableItemBackground)
+                setPadding(16, 16, 16, 16)
+                scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                contentDescription = cat.second
+            }
+            container.addView(ib)
         }
     }
     
@@ -429,6 +503,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     private fun commitWord(word: String) {
         val finalWord = word.lowercase()
         val prevToSave = previousWord
+        val prevPrevToSave = prevPrevWord
+        prevPrevWord = previousWord
         previousWord = finalWord
         currentWord.clear()
         
@@ -439,7 +515,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         
         coroutineScope.launch {
             // Learn new word dynamically
-            dictionaryEngine.insertWord(finalWord)
+            dictionaryEngine.insertWord(finalWord, prevWord = prevToSave, prevPrevWord = prevPrevToSave)
             updateSuggestions()
         }
     }
@@ -457,10 +533,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         }
 
         val clipboardContainer = mainView?.findViewById<android.view.View>(R.id.clipboard_container)
+        val emojiContainer = mainView?.findViewById<android.view.View>(R.id.emoji_container)
         val keyboardView = mainView?.findViewById<com.example.keyboard.KeyboardView>(R.id.keyboard_view)
         clipboardContainer?.visibility = android.view.View.GONE
+        emojiContainer?.visibility = android.view.View.GONE
         keyboardView?.visibility = android.view.View.VISIBLE
         isClipboardModalOpen = false
+        isEmojiModalOpen = false
 
         // Select initial layout based on input type
         val inputType = info?.inputType ?: android.text.InputType.TYPE_CLASS_TEXT
@@ -653,7 +732,19 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         }
         
         if (prefix.isBlank()) {
-            clearSuggestions()
+            suggestionJob = coroutineScope.launch {
+                val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 3)
+                currentSuggestions = list
+                
+                tvSuggestion1?.text = list.getOrNull(0) ?: ""
+                tvSuggestion1?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+                
+                tvSuggestion2?.text = list.getOrNull(1) ?: ""
+                tvSuggestion2?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
+                
+                tvSuggestion3?.text = list.getOrNull(2) ?: ""
+                tvSuggestion3?.visibility = if (list.size > 2) View.VISIBLE else View.GONE
+            }
             if (showPaste) {
                 suggestionPasteDivider?.visibility = View.GONE
             }
@@ -661,7 +752,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         }
 
         suggestionJob = coroutineScope.launch {
-            val list = dictionaryEngine.getSuggestions(prefix, 3)
+            val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 3)
             currentSuggestions = list
             
             tvSuggestion1?.text = list.getOrNull(0) ?: ""
@@ -817,7 +908,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "MODE_DESKTOP" -> switchKeyboardLayout(R.xml.kbd_desktop)
             "MODE_NUMPAD" -> switchKeyboardLayout(R.xml.kbd_numpad)
             "MODE_EMOJI" -> {
-                // TODO: Implement custom view for emoji
+                isEmojiModalOpen = true
+                toggleEmojiModal(true)
             }
             "SETTINGS" -> {
                 val intent = android.content.Intent(this, SettingsActivity::class.java).apply {

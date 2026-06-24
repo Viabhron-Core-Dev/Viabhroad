@@ -149,9 +149,9 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Use Lightweight Transformer Model")
+                    Text("Use Built-in Transformer Model")
                     Text(
-                        "Future support for ML-based completions (TensorLite).",
+                        "Enables the lightweight (3MB) ML model for next-word completions.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -161,9 +161,6 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
                     onCheckedChange = {
                         useTransformerEngine = it
                         prefs.edit().putBoolean("use_transformer", it).apply()
-                        if (it) {
-                            Toast.makeText(context, "Note: Transformer model is a placeholder feature.", Toast.LENGTH_SHORT).show()
-                        }
                     }
                 )
             }
@@ -187,7 +184,7 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
             HorizontalDivider()
             Spacer(modifier = Modifier.height(24.dp))
             
-            Text("Transformer Model (Advanced)", style = MaterialTheme.typography.titleMedium)
+            Text("Custom Transformer Model (Advanced)", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
             
             Card(
@@ -196,12 +193,12 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "To use the Transformer Engine, you must import a TensorFlow Lite model (.tflite) and its vocabulary file (.txt).",
+                        "You can override the built-in 3MB model by importing your own TensorFlow Lite model (.tflite) and vocabulary file (.txt).",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "We recommend models around 20MB for optimal mobile keyboard performance. Once imported, you can toggle the engine on.",
+                        "If you import a custom model, the built-in model will be disabled automatically.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

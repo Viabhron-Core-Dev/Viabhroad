@@ -9,6 +9,8 @@ class DictionaryEngine(private val context: Context) {
     
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val trie = TrieNode()
+    private val bigrams = mutableMapOf<String, MutableMap<String, Int>>()
+    private val trigrams = mutableMapOf<String, MutableMap<String, Int>>()
     
     private val personalDao: PersonalDictionaryDao by lazy {
         ClipboardDatabase.getDatabase(context).personalDictionaryDao()
@@ -99,7 +101,7 @@ class DictionaryEngine(private val context: Context) {
         }
     }
 
-    fun insertWord(word: String, frequency: Int = 1) {
+    fun insertWord(word: String, frequency: Int = 1, prevWord: String? = null, prevPrevWord: String? = null) {
         var current = trie
         for (char in word) {
             val c = char.lowercaseChar()
@@ -110,11 +112,61 @@ class DictionaryEngine(private val context: Context) {
         }
         current.isWord = true
         current.frequency += frequency
+        
+        // Update bigrams
+        if (prevWord != null) {
+            val nextWords = bigrams.getOrPut(prevWord) { mutableMapOf() }
+            nextWords[word] = nextWords.getOrDefault(word, 0) + frequency
+        }
+        
+        // Update trigrams
+        if (prevWord != null && prevPrevWord != null) {
+            val context = "$prevPrevWord $prevWord"
+            val nextWords = trigrams.getOrPut(context) { mutableMapOf() }
+            nextWords[word] = nextWords.getOrDefault(word, 0) + frequency
+        }
     }
 
-    suspend fun getSuggestions(prefix: String, limit: Int = 3): List<String> {
-        if (prefix.isBlank()) return emptyList()
+    suspend fun getSuggestions(prefix: String, prevWord: String? = null, prevPrevWord: String? = null, limit: Int = 3): List<String> {
+        val results = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
         val lowerPrefix = prefix.lowercase()
+        
+        if (lowerPrefix.isNotEmpty()) {
+            // Check for Quick Phrase (shortcut)
+            val quickPhrase = try {
+                personalDao.getByShortcut(lowerPrefix)
+            } catch (e: Exception) { null }
+            
+            if (quickPhrase != null && quickPhrase.word.isNotBlank()) {
+                results.add(quickPhrase.word)
+                seen.add(quickPhrase.word)
+            }
+        }
+        
+        if (lowerPrefix.isEmpty()) {
+            // Next-word prediction using trigrams and bigrams
+            if (prevWord != null) {
+                if (prevPrevWord != null) {
+                    val context = "$prevPrevWord $prevWord"
+                    val triMatches = trigrams[context]?.entries?.sortedByDescending { it.value }?.map { it.key }
+                    if (triMatches != null) {
+                        for (w in triMatches) {
+                            if (seen.add(w)) results.add(w)
+                            if (results.size >= limit) return results
+                        }
+                    }
+                }
+                val biMatches = bigrams[prevWord]?.entries?.sortedByDescending { it.value }?.map { it.key }
+                if (biMatches != null) {
+                    for (w in biMatches) {
+                        if (seen.add(w)) results.add(w)
+                        if (results.size >= limit) return results
+                    }
+                }
+            }
+            return results
+        }
         
         // 1. Fetch personal suggestions
         val personalWords = try {
@@ -127,9 +179,6 @@ class DictionaryEngine(private val context: Context) {
         val engineWords = getPrefixSuggestions(lowerPrefix, limit)
         
         // Combine, prioritize personal, ensure unique
-        val results = mutableListOf<String>()
-        val seen = mutableSetOf<String>()
-        
         for (word in personalWords + engineWords) {
             if (seen.add(word)) {
                 results.add(word)
