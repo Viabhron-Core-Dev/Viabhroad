@@ -164,7 +164,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             }
         }
         root.findViewById<android.view.View>(R.id.btn_clipboard_enter)?.setOnClickListener {
-            sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_ENTER)
+            handleEnterAction()
         }
         root.findViewById<android.view.View>(R.id.btn_clipboard_backspace)?.setOnClickListener {
             sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
@@ -253,12 +253,15 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             // Can add more later
         )
         
+        val typedValue = android.util.TypedValue()
+        theme.resolveAttribute(android.R.attr.selectableItemBackground, typedValue, true)
+        
         for (cat in categories) {
             val resId = resources.getIdentifier(cat.first, "drawable", packageName)
             val ib = android.widget.ImageButton(this).apply {
                 layoutParams = android.widget.LinearLayout.LayoutParams(120, android.view.ViewGroup.LayoutParams.MATCH_PARENT)
                 setImageResource(resId)
-                setBackgroundResource(android.R.attr.selectableItemBackground)
+                setBackgroundResource(typedValue.resourceId)
                 setPadding(16, 16, 16, 16)
                 scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                 contentDescription = cat.second
@@ -885,15 +888,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 }
                 updateShiftState()
             }
-            "ENTER" -> {
-                inputConnection.commitText("\n", 1)
-                if (currentWord.isNotEmpty()) {
-                    commitWord(currentWord.toString())
-                }
-                previousWord = null
-                updateSuggestions()
-                updateShiftState()
-            }
+            "ENTER" -> handleEnterAction()
             "SHIFT" -> {
                 when (shiftState) {
                     ShiftState.LOWERCASE -> updateShiftState(ShiftState.UPPERCASE)
@@ -994,6 +989,26 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 updateSuggestions()
             }
         }
+    }
+
+    private fun handleEnterAction() {
+        val ic = currentInputConnection ?: return
+        val imeOptions = currentInputEditorInfo?.imeOptions ?: 0
+        val action = imeOptions and EditorInfo.IME_MASK_ACTION
+        val noEnterAction = (imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
+
+        if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED && !noEnterAction) {
+            ic.performEditorAction(action)
+        } else {
+            sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_ENTER)
+        }
+        
+        if (currentWord.isNotEmpty()) {
+            commitWord(currentWord.toString())
+        }
+        previousWord = null
+        updateSuggestions()
+        updateShiftState()
     }
 
     private fun sendUndo() {
