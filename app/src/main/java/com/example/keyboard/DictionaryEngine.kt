@@ -9,15 +9,15 @@ class DictionaryEngine(private val context: Context) {
     
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val trie = TrieNode()
-    private val bigrams = mutableMapOf<String, MutableMap<String, Int>>()
-    private val trigrams = mutableMapOf<String, MutableMap<String, Int>>()
+    private val bigrams = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, Int>>()
+    private val trigrams = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, Int>>()
     
     private val personalDao: PersonalDictionaryDao by lazy {
         ClipboardDatabase.getDatabase(context).personalDictionaryDao()
     }
 
     class TrieNode {
-        val children = mutableMapOf<Char, TrieNode>()
+        val children = java.util.concurrent.ConcurrentHashMap<Char, TrieNode>()
         var isWord = false
         var frequency = 0
     }
@@ -115,14 +115,14 @@ class DictionaryEngine(private val context: Context) {
         
         // Update bigrams
         if (prevWord != null) {
-            val nextWords = bigrams.getOrPut(prevWord) { mutableMapOf() }
+            val nextWords = bigrams.getOrPut(prevWord) { java.util.concurrent.ConcurrentHashMap() }
             nextWords[word] = nextWords.getOrDefault(word, 0) + frequency
         }
         
         // Update trigrams
         if (prevWord != null && prevPrevWord != null) {
             val context = "$prevPrevWord $prevWord"
-            val nextWords = trigrams.getOrPut(context) { mutableMapOf() }
+            val nextWords = trigrams.getOrPut(context) { java.util.concurrent.ConcurrentHashMap() }
             nextWords[word] = nextWords.getOrDefault(word, 0) + frequency
         }
     }

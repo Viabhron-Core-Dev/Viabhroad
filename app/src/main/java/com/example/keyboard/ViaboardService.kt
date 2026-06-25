@@ -483,6 +483,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 isManualIncognito = !isManualIncognito
                 updateIncognitoStateUI()
                 currentWord.clear()
+                wordLengthBeforeCursor = 0
+                wordLengthAfterCursor = 0
                 previousWord = null
                 clearSuggestions()
                 val stateText = if (isIncognitoActive()) "Incognito Mode ON" else "Incognito Mode OFF"
@@ -543,6 +545,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         prevPrevWord = previousWord
         previousWord = finalWord
         currentWord.clear()
+        wordLengthBeforeCursor = 0
+        wordLengthAfterCursor = 0
         
         if (isIncognitoActive()) {
             updateSuggestions()
@@ -591,6 +595,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         }
 
         currentWord.clear()
+        wordLengthBeforeCursor = 0
+        wordLengthAfterCursor = 0
         previousWord = null
         clearSuggestions()
         updateIncognitoStateUI()
@@ -937,10 +943,12 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 if (selectedText != null && selectedText.isNotEmpty()) {
                     inputConnection.commitText("", 1)
                     currentWord.clear()
+                    wordLengthBeforeCursor = 0
+                    wordLengthAfterCursor = 0
                     clearSuggestions()
                 } else {
                     sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
-                    if (currentWord.isNotEmpty() && wordLengthBeforeCursor > 0) {
+                    if (currentWord.isNotEmpty() && wordLengthBeforeCursor > 0 && wordLengthBeforeCursor <= currentWord.length) {
                         currentWord.deleteCharAt(wordLengthBeforeCursor - 1)
                         wordLengthBeforeCursor--
                         updateSuggestions()
@@ -1039,8 +1047,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 }
                 
                 if (finalKey.length == 1 && finalKey[0].isLetter()) {
-                    currentWord.insert(wordLengthBeforeCursor, finalKey)
-                    wordLengthBeforeCursor += finalKey.length
+                    val insertIndex = wordLengthBeforeCursor.coerceIn(0, currentWord.length)
+                    currentWord.insert(insertIndex, finalKey)
+                    wordLengthBeforeCursor = insertIndex + finalKey.length
                     updateSuggestions()
                 } else {
                     currentWord.clear()
@@ -1084,8 +1093,12 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             inputConnection.deleteSurroundingText(deleteCount, 0)
             if (currentWord.isNotEmpty()) {
                 val deleteFromWord = kotlin.math.min(deleteCount, wordLengthBeforeCursor)
-                currentWord.delete(wordLengthBeforeCursor - deleteFromWord, wordLengthBeforeCursor)
-                wordLengthBeforeCursor -= deleteFromWord
+                val startIndex = kotlin.math.max(0, wordLengthBeforeCursor - deleteFromWord)
+                val endIndex = kotlin.math.min(currentWord.length, wordLengthBeforeCursor)
+                if (startIndex < endIndex) {
+                    currentWord.delete(startIndex, endIndex)
+                }
+                wordLengthBeforeCursor = startIndex
                 updateSuggestions()
             }
         }
