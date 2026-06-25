@@ -127,6 +127,31 @@ class DictionaryEngine(private val context: Context) {
         }
     }
 
+    suspend fun forgetWord(word: String) {
+        val lowerWord = word.lowercase()
+        // 1. Delete from personal dictionary if it exists
+        try {
+            personalDao.getByShortcut(lowerWord)?.let { item ->
+                personalDao.delete(item)
+            }
+        } catch (e: Exception) { e.printStackTrace() }
+
+        // 2. Reduce frequency or mark as not a word in Trie
+        var current = trie
+        var found = true
+        for (char in lowerWord) {
+            if (!current.children.containsKey(char)) {
+                found = false
+                break
+            }
+            current = current.children[char]!!
+        }
+        if (found && current.isWord) {
+            current.frequency = -10000 // Effectively blacklist it
+            current.isWord = false
+        }
+    }
+
     suspend fun getSuggestions(prefix: String, prevWord: String? = null, prevPrevWord: String? = null, limit: Int = 3): List<String> {
         val results = mutableListOf<String>()
         val seen = mutableSetOf<String>()

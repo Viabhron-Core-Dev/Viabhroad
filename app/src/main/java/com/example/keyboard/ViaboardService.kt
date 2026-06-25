@@ -312,7 +312,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         tvSuggestion1?.setOnClickListener { onSuggestionClicked(tvSuggestion1?.text.toString()) }
         tvSuggestion2?.setOnClickListener { onSuggestionClicked(tvSuggestion2?.text.toString()) }
         tvSuggestion3?.setOnClickListener { onSuggestionClicked(tvSuggestion3?.text.toString()) }
-        
+
+        tvSuggestion1?.setOnLongClickListener { onSuggestionLongClicked(tvSuggestion1?.text.toString()); true }
+        tvSuggestion2?.setOnLongClickListener { onSuggestionLongClicked(tvSuggestion2?.text.toString()); true }
+        tvSuggestion3?.setOnLongClickListener { onSuggestionLongClicked(tvSuggestion3?.text.toString()); true }
+
         // When clicking the main paste chip, we commit the text directly.
         suggestionPaste?.setOnClickListener {
             val text = clipboardManager?.primaryClip?.getItemAt(0)?.text?.toString()
@@ -503,6 +507,33 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         commitWord(word)
         wordLengthBeforeCursor = 0
         wordLengthAfterCursor = 0
+    }
+
+    private fun onSuggestionLongClicked(word: String) {
+        if (word.isBlank()) return
+        
+        val context = mainView?.context ?: return
+        val builder = android.app.AlertDialog.Builder(context)
+        builder.setTitle("Remove Suggestion")
+        builder.setMessage("Do you want to stop suggesting '$word'?")
+        builder.setPositiveButton("Remove") { _, _ ->
+            coroutineScope.launch {
+                dictionaryEngine.forgetWord(word)
+                updateSuggestions()
+            }
+        }
+        builder.setNegativeButton("Cancel", null)
+        
+        val dialog = builder.create()
+        val window = dialog.window
+        if (window != null) {
+            val params = window.attributes
+            params.token = mainView?.windowToken
+            params.type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
+            window.attributes = params
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+        }
+        dialog.show()
     }
 
     private fun commitWord(word: String) {
