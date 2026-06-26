@@ -42,7 +42,6 @@
         <Key codes="DSK_DOWN" label="↓" sublabel="Down" sublabel2="PgDn ↗" longPress="DSK_PGDN" weight="1.1" isFunctional="true" />
         <Key codes="DSK_DEDENT" label="DEDENT" sublabel="Sh+Tab" weight="1.1" isFunctional="true" />
         <Key codes="DSK_DEL" label="DEL" sublabel="Del" sublabel2="DelLine ↗" longPress="DSK_DELLINE" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_ENTER" label="↵" sublabel="Enter" sublabel2="Save ↗" longPress="DSK_SAVE" weight="1.1" isFunctional="true" />
     </Row>
     <Row>
         <Key codes="MODE_ALPHABET" label="ABC" weight="1.5" isFunctional="true" />
