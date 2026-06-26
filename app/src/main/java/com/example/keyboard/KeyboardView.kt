@@ -26,6 +26,7 @@ class KeyboardView @JvmOverloads constructor(
     var listener: KeyboardListener? = null
     fun getKeyboard(): Keyboard? = keyboard
     private var keyboard: Keyboard? = null
+    private var isDesktopLayout = false
 
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -150,6 +151,7 @@ class KeyboardView @JvmOverloads constructor(
 
     fun setKeyboard(kbd: Keyboard) {
         this.keyboard = kbd
+        this.isDesktopLayout = kbd.rows.any { row -> row.keys.any { it.codes == "DSK_ESC" } }
         if (width > 0 && height > 0) {
             calculateKeyRects(width, height)
         }
@@ -180,6 +182,29 @@ class KeyboardView @JvmOverloads constructor(
                 key.height = rowHeight
                 
                 currentX += keyWidth
+            }
+        }
+
+        if (isDesktopLayout) {
+            var selCenterX = 0f
+            for (row in kbd.rows) {
+                for (key in row.keys) {
+                    if (key.codes == "DSK_SEL") {
+                        selCenterX = key.x + (key.width / 2f)
+                    }
+                }
+            }
+            if (selCenterX > 0f) {
+                for (row in kbd.rows) {
+                    val targetKey = row.keys.find { it.codes == "DSK_UP" || it.codes == "DSK_DOWN" }
+                    if (targetKey != null) {
+                        val currentCenterX = targetKey.x + (targetKey.width / 2f)
+                        val offset = selCenterX - currentCenterX
+                        for (key in row.keys) {
+                            key.x += offset
+                        }
+                    }
+                }
             }
         }
     }
@@ -236,8 +261,17 @@ class KeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     val originalSize = textPaint.textSize
-                    if (key.label.length > 1) {
+                    if (key.label.length > 1 && !isDesktopLayout) {
                         textPaint.textSize = originalSize * 0.65f
+                    }
+                    if (isDesktopLayout) {
+                        var currentSize = originalSize
+                        val minSize = 8f * resources.displayMetrics.scaledDensity
+                        val maxWidth = rect.width() - 8f
+                        while (textPaint.measureText(key.label) > maxWidth && currentSize > minSize) {
+                            currentSize -= 1f
+                            textPaint.textSize = currentSize
+                        }
                     }
                     val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
                     canvas.drawText(key.label, rect.centerX(), textY, textPaint)
@@ -248,7 +282,16 @@ class KeyboardView @JvmOverloads constructor(
                     val originalAlign = hintPaint.textAlign
                     val originalSize = hintPaint.textSize
                     hintPaint.textAlign = Paint.Align.CENTER
-                    hintPaint.textSize = 14f
+                    hintPaint.textSize = 14f * resources.displayMetrics.scaledDensity
+                    if (isDesktopLayout) {
+                        var currentSize = hintPaint.textSize
+                        val minSize = 8f * resources.displayMetrics.scaledDensity
+                        val maxWidth = rect.width() - 8f
+                        while (hintPaint.measureText(it) > maxWidth && currentSize > minSize) {
+                            currentSize -= 1f
+                            hintPaint.textSize = currentSize
+                        }
+                    }
                     val hintY = rect.bottom - 10f
                     canvas.drawText(it, rect.centerX(), hintY, hintPaint)
                     hintPaint.textAlign = originalAlign
@@ -259,7 +302,16 @@ class KeyboardView @JvmOverloads constructor(
                     val originalAlign = hintPaint.textAlign
                     val originalSize = hintPaint.textSize
                     hintPaint.textAlign = Paint.Align.RIGHT
-                    hintPaint.textSize = 14f
+                    hintPaint.textSize = 14f * resources.displayMetrics.scaledDensity
+                    if (isDesktopLayout) {
+                        var currentSize = hintPaint.textSize
+                        val minSize = 8f * resources.displayMetrics.scaledDensity
+                        val maxWidth = rect.width() / 2f - 4f
+                        while (hintPaint.measureText(it) > maxWidth && currentSize > minSize) {
+                            currentSize -= 1f
+                            hintPaint.textSize = currentSize
+                        }
+                    }
                     val hintX = rect.right - 8f
                     val hintY = rect.top + 22f
                     canvas.drawText(it, hintX, hintY, hintPaint)
@@ -467,6 +519,11 @@ class KeyboardView @JvmOverloads constructor(
             "SETTINGS" -> "⚙️"
             "ONE_HAND" -> "🗗"
             "CLIPBOARD" -> "📋"
+            "DSK_PGUP" -> "PgUp"
+            "DSK_PGDN" -> "PgDn"
+            "DSK_DELLINE" -> "DelLine"
+            "DSK_SAVE" -> "Save"
+            "DSK_SELALL" -> "SelAll"
             else -> code
         }
     }
@@ -529,14 +586,6 @@ class KeyboardView @JvmOverloads constructor(
         val key = tracker.pressedKey ?: return
         if (!tracker.isPressedValid) return
 
-        if (key.longPress != null && key.longPress!!.startsWith("DSK_")) {
-            listener?.onKeyPress(key.longPress!!)
-            tracker.pressedKey = null
-            tracker.isPressedValid = false
-            invalidate()
-            return
-        }
-
         if (key.codes == "ENTER") {
             listener?.onLongPressEnter()
             tracker.pressedKey = null
@@ -553,9 +602,17 @@ class KeyboardView @JvmOverloads constructor(
             tracker.isPressedValid = false
             invalidate()
         } else {
-            val options = getAccentsForKey(key.codes)
+            val options = if (key.longPress != null) {
+                if (key.longPress!!.startsWith("ACCENT_")) {
+                    getAccentsForKey(key.codes)
+                } else {
+                    listOf(key.longPress!!)
+                }
+            } else {
+                getAccentsForKey(key.codes)
+            }
             if (options.isNotEmpty()) {
-                if (options.size == 1) {
+                if (options.size == 1 && key.longPress == null) {
                     listener?.onKeyPress(options.first())
                     tracker.pressedKey = null
                     tracker.isPressedValid = false
