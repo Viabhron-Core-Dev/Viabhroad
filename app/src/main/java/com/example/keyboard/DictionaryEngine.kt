@@ -12,9 +12,35 @@ class DictionaryEngine(private val context: Context) {
     private val bigrams = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, Int>>()
     private val trigrams = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, Int>>()
     
+    // Static fallback lists for proactive suggestions
+    private val commonFallbackWords = listOf("I", "the", "and", "to", "you", "a", "is", "that", "it", "in")
+    private val staticBigrams = mapOf(
+        "how" to listOf("are", "to", "do", "much", "many"),
+        "what" to listOf("is", "are", "do", "to", "a"),
+        "i" to listOf("am", "have", "will", "do", "think", "don't", "can"),
+        "you" to listOf("are", "can", "will", "have", "know", "think"),
+        "in" to listOf("the", "a", "my", "this", "our"),
+        "on" to listOf("the", "a", "my", "this"),
+        "to" to listOf("the", "be", "do", "see", "get", "make"),
+        "the" to listOf("same", "first", "best", "only", "way", "time"),
+        "for" to listOf("the", "a", "me", "you"),
+        "of" to listOf("the", "a", "my", "this"),
+        "and" to listOf("the", "I", "a", "we", "then"),
+        "is" to listOf("a", "the", "not", "this"),
+        "it" to listOf("is", "was", "will", "can"),
+        "this" to listOf("is", "was", "will", "one"),
+        "we" to listOf("are", "can", "will", "have", "need"),
+        "they" to listOf("are", "were", "will", "have")
+    )
+    
     private val personalDao: PersonalDictionaryDao by lazy {
         ClipboardDatabase.getDatabase(context).personalDictionaryDao()
     }
+
+    private var pendingLoads = java.util.concurrent.atomic.AtomicInteger(0)
+    var isReady = false
+        private set
+    var onReadyCallback: (() -> Unit)? = null
 
     class TrieNode {
         val children = java.util.concurrent.ConcurrentHashMap<Char, TrieNode>()
@@ -27,32 +53,29 @@ class DictionaryEngine(private val context: Context) {
     }
     
     private fun loadDefaultDictionary() {
-        // Load the basic dict from raw resources
-        try {
-            val basicStream = context.resources.openRawResource(R.raw.basic_dict)
-            loadTextDictionary(basicStream)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        val rawIds = listOf(R.raw.basic_dict, R.raw.google_10k_english, R.raw.hermit_dave_en_50k)
+        pendingLoads.set(rawIds.size)
+
+        for (rawId in rawIds) {
+            try {
+                val stream = context.resources.openRawResource(rawId)
+                loadTextDictionary(stream)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                checkIfReady()
+            }
         }
 
-        // Load Google 10k English Words
-        try {
-            val google10kStream = context.resources.openRawResource(R.raw.google_10k_english)
-            loadTextDictionary(google10kStream)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        // Load Hermit Dave's Frequency Words (50k)
-        try {
-            val hermitDaveStream = context.resources.openRawResource(R.raw.hermit_dave_en_50k)
-            loadTextDictionary(hermitDaveStream)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        
-        // Also load any imported text dictionaries from internal storage
         loadImportedDictionaries()
+    }
+
+    private fun checkIfReady() {
+        if (pendingLoads.decrementAndGet() <= 0) {
+            isReady = true
+            scope.launch(Dispatchers.Main) {
+                onReadyCallback?.invoke()
+            }
+        }
     }
 
     private fun loadImportedDictionaries() {
@@ -97,6 +120,8 @@ class DictionaryEngine(private val context: Context) {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                checkIfReady()
             }
         }
     }
@@ -189,7 +214,25 @@ class DictionaryEngine(private val context: Context) {
                         if (results.size >= limit) return results
                     }
                 }
+                
+                // Static fallback bigrams
+                val staticBiMatches = staticBigrams[prevWord]
+                if (staticBiMatches != null) {
+                    for (w in staticBiMatches) {
+                        if (seen.add(w)) results.add(w)
+                        if (results.size >= limit) return results
+                    }
+                }
             }
+            
+            // Final fallback to common words if still empty
+            if (results.isEmpty()) {
+                for (w in commonFallbackWords) {
+                    if (seen.add(w)) results.add(w)
+                    if (results.size >= limit) return results
+                }
+            }
+            
             return results
         }
         
@@ -218,26 +261,31 @@ class DictionaryEngine(private val context: Context) {
         var current = trie
         for (char in prefix) {
             val c = char.lowercaseChar()
-            if (!current.children.containsKey(c)) return emptyList()
-            current = current.children[c]!!
+            current = current.children[c] ?: return emptyList()
         }
-        
-        val results = mutableListOf<Pair<String, Int>>()
-        findWordsDeep(current, prefix, results)
-        
-        return results
-            .sortedByDescending { it.second }
-            .take(limit)
-            .map { it.first }
-    }
 
-    private fun findWordsDeep(node: TrieNode, prefix: String, results: MutableList<Pair<String, Int>>) {
-        if (node.isWord) {
-            results.add(Pair(prefix, node.frequency))
+        data class Entry(val node: TrieNode, val word: String)
+
+        val queue = java.util.PriorityQueue<Pair<Int, Entry>>(16, compareByDescending { it.first })
+        queue.add(Pair(current.frequency, Entry(current, prefix)))
+
+        val results = mutableListOf<Pair<String, Int>>()
+        var visited = 0
+        val maxVisit = 500
+
+        while (queue.isNotEmpty() && results.size < limit && visited < maxVisit) {
+            val (_, entry) = queue.poll() ?: break
+            visited++
+            if (entry.node.isWord && entry.word.length >= prefix.length) {
+                results.add(Pair(entry.word, entry.node.frequency))
+                if (results.size >= limit) break
+            }
+            for ((char, child) in entry.node.children) {
+                queue.add(Pair(child.frequency, Entry(child, entry.word + char)))
+            }
         }
-        for ((char, childNode) in node.children) {
-            findWordsDeep(childNode, prefix + char, results)
-        }
+
+        return results.sortedByDescending { it.second }.map { it.first }
     }
     
     // HeliBoard dictionary parsing blueprint (placeholder for actual implementation)

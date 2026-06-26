@@ -96,6 +96,13 @@ class KeyboardView @JvmOverloads constructor(
         }
     }
 
+    private var desktopSelectMode = false
+
+    fun setDesktopSelectMode(active: Boolean) {
+        desktopSelectMode = active
+        invalidate()
+    }
+
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
@@ -203,6 +210,7 @@ class KeyboardView @JvmOverloads constructor(
                 // Draw Key Background
                 val isPressed = isKeyPressed(key)
                 bgPaint.color = if (isPressed && !isAccentPopupVisible) Color.parseColor("#D0D3D8")
+                                else if (key.codes == "DSK_SEL" && desktopSelectMode) Color.parseColor("#4285F4")
                                 else if (key.isFunctional) Color.parseColor("#DDE1E5") 
                                 else Color.WHITE
                 
@@ -236,8 +244,41 @@ class KeyboardView @JvmOverloads constructor(
                     textPaint.textSize = originalSize
                 }
                 
+                key.sublabel?.let {
+                    val originalAlign = hintPaint.textAlign
+                    val originalSize = hintPaint.textSize
+                    hintPaint.textAlign = Paint.Align.CENTER
+                    hintPaint.textSize = 14f
+                    val hintY = rect.bottom - 10f
+                    canvas.drawText(it, rect.centerX(), hintY, hintPaint)
+                    hintPaint.textAlign = originalAlign
+                    hintPaint.textSize = originalSize
+                }
+
+                key.sublabel2?.let {
+                    val originalAlign = hintPaint.textAlign
+                    val originalSize = hintPaint.textSize
+                    hintPaint.textAlign = Paint.Align.RIGHT
+                    hintPaint.textSize = 14f
+                    val hintX = rect.right - 8f
+                    val hintY = rect.top + 22f
+                    canvas.drawText(it, hintX, hintY, hintPaint)
+                    hintPaint.textAlign = originalAlign
+                    hintPaint.textSize = originalSize
+                }
+
+                if (key.longPress != null) {
+                    val triangleSize = 8f
+                    val path = android.graphics.Path()
+                    path.moveTo(rect.right - 6f, rect.bottom - 6f)
+                    path.lineTo(rect.right - 6f - triangleSize, rect.bottom - 6f)
+                    path.lineTo(rect.right - 6f, rect.bottom - 6f - triangleSize)
+                    path.close()
+                    canvas.drawPath(path, hintPaint)
+                }
+                
                 // Draw hint
-                if (key.codes.length == 1 && key.label.length == 1) {
+                if (key.codes.length == 1 && key.label.length == 1 && key.sublabel == null && key.sublabel2 == null) {
                     val hints = getAccentsForKey(key.codes)
                     if (hints.isNotEmpty()) {
                         val hintChar = hints[0]
@@ -471,6 +512,13 @@ class KeyboardView @JvmOverloads constructor(
             "!" -> listOf("¡")
             "?" -> listOf("¿")
             "mode_symbols" -> listOf("MODE_NUMPAD", "MODE_EMOJI", "MODE_NAVIGATION", "MODE_SYMBOLS_SHIFT", "MODE_DESKTOP")
+            "+" -> listOf("(")
+            "-" -> listOf(")")
+            "*" -> listOf("/")
+            "=" -> listOf("#")
+            "%" -> listOf("₹", "$", "¢", "€", "£", "¥")
+            ":" -> listOf(";")
+            "_" -> listOf("|")
             "." -> listOf("&", "%", "+", "\"", "-", ":", "'", "@", ";", "/", "(", ")", "#", "!", ",", "?", "]", "[")
             "," -> listOf("MODE_EMOJI", "SETTINGS", "CLIPBOARD")
             else -> emptyList()
@@ -480,6 +528,14 @@ class KeyboardView @JvmOverloads constructor(
     private fun triggerLongPress(tracker: PointerTracker) {
         val key = tracker.pressedKey ?: return
         if (!tracker.isPressedValid) return
+
+        if (key.longPress != null && key.longPress!!.startsWith("DSK_")) {
+            listener?.onKeyPress(key.longPress!!)
+            tracker.pressedKey = null
+            tracker.isPressedValid = false
+            invalidate()
+            return
+        }
 
         if (key.codes == "ENTER") {
             listener?.onLongPressEnter()

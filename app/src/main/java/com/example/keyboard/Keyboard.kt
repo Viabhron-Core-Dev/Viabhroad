@@ -6,6 +6,9 @@ import org.xmlpull.v1.XmlPullParser
 data class Key(
     val codes: String,
     var label: String = codes,
+    var sublabel: String? = null,
+    var sublabel2: String? = null,
+    var longPress: String? = null,
     var widthWeight: Float = 1.0f,
     var isFunctional: Boolean = false,
     var x: Float = 0f,
@@ -34,12 +37,15 @@ class KeyboardParser(private val context: Context) {
                     "Key" -> {
                         val codes = parser.getAttributeValue(null, "codes") ?: ""
                         val label = parser.getAttributeValue(null, "label") ?: codes
+                        val sublabel = parser.getAttributeValue(null, "sublabel")
+                        val sublabel2 = parser.getAttributeValue(null, "sublabel2")
+                        val longPress = parser.getAttributeValue(null, "longPress")
                         val weightStr = parser.getAttributeValue(null, "weight")
                         val weight = weightStr?.toFloatOrNull() ?: 1.0f
                         val isFunctionalStr = parser.getAttributeValue(null, "isFunctional")
                         val isFunctional = isFunctionalStr?.toBoolean() ?: false
                         
-                        currentKeys.add(Key(codes, label, weight, isFunctional))
+                        currentKeys.add(Key(codes, label, sublabel, sublabel2, longPress, weight, isFunctional))
                     }
                 }
             } else if (eventType == XmlPullParser.END_TAG) {

@@ -97,6 +97,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         logKeeper.log("INFO", "ViaboardService", "Service Created (View-based)")
         
         dictionaryEngine = DictionaryEngine(this)
+        dictionaryEngine.onReadyCallback = {
+            updateSuggestions()
+        }
         clipboardRepository = ClipboardRepository(ClipboardDatabase.getDatabase(this).clipboardDao())
     }
 
@@ -563,6 +566,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
 
+        // Refresh settings
+        val prefs = getSharedPreferences("keyboard_prefs", android.content.Context.MODE_PRIVATE)
+        val autocorrectAggressiveness = prefs.getFloat("autocorrect_aggressiveness", 0.5f)
+        isAutocorrectEnabled = autocorrectAggressiveness > 0.2f
+
         // Refresh Toolbar configuration to catch Settings changes
         mainView?.let { root ->
             val expandedContent = root.findViewById<android.widget.LinearLayout>(R.id.toolbar_expanded_content)
@@ -803,6 +811,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
     }
     
     private fun updateSuggestions() {
+        if (!dictionaryEngine.isReady) return
+
         val prefix = currentWord.toString()
         suggestionJob?.cancel()
         
@@ -972,24 +982,35 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
                 if (isAutocorrectEnabled && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].lowercase() != currentWord.toString().lowercase()) {
                     val topWordText = currentSuggestions[0]
                     val isCapitalized = currentWord[0].isUpperCase()
-                    val topWord = if (isCapitalized) {
-                        topWordText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
-                    } else {
-                        topWordText
+                    
+                    // Only auto-correct if aggressiveness is high OR it's a very close match (length difference <= 2).
+                    // This prevents French words from being aggressively replaced by English words just because they share a prefix.
+                    val prefs = getSharedPreferences("keyboard_prefs", android.content.Context.MODE_PRIVATE)
+                    val aggro = prefs.getFloat("autocorrect_aggressiveness", 0.5f)
+                    val isCloseMatch = kotlin.math.abs(topWordText.length - currentWord.length) <= 1
+                    
+                    if (aggro >= 0.8f || isCloseMatch) {
+                        val topWord = if (isCapitalized) {
+                            topWordText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+                        } else {
+                            topWordText
+                        }
+                        inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
+                        inputConnection.commitText(topWord + " ", 1)
+                        commitWord(topWordText)
+                        lastSpaceTime = now
+                        wordLengthBeforeCursor = 0
+                        wordLengthAfterCursor = 0
+                        updateShiftState()
+                        return
                     }
-                    inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
-                    inputConnection.commitText(topWord + " ", 1)
-                    commitWord(topWordText)
-                    lastSpaceTime = now
-                    wordLengthBeforeCursor = 0
-                    wordLengthAfterCursor = 0
-                } else {
-                    inputConnection.commitText(" ", 1)
-                    if (currentWord.isNotEmpty()) {
-                        commitWord(currentWord.toString())
-                    }
-                    lastSpaceTime = now
                 }
+                
+                inputConnection.commitText(" ", 1)
+                if (currentWord.isNotEmpty()) {
+                    commitWord(currentWord.toString())
+                }
+                lastSpaceTime = now
                 updateShiftState()
             }
             "ENTER" -> handleEnterAction()
@@ -1005,7 +1026,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "MODE_ALPHABET" -> switchKeyboardLayout(R.xml.kbd_qwerty)
             "MODE_NAVIGATION" -> switchKeyboardLayout(R.xml.kbd_navigation)
             "MODE_DESKTOP" -> switchKeyboardLayout(R.xml.kbd_desktop)
-            "MODE_NUMPAD" -> switchKeyboardLayout(R.xml.kbd_numpad)
+            "MODE_NUMPAD" -> switchKeyboardLayout(R.xml.kbd_numpad_extended)
             "MODE_EMOJI" -> {
                 isEmojiModalOpen = true
                 toggleEmojiModal(true)
@@ -1034,6 +1055,44 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "END" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_MOVE_END)
             "PGUP" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_PAGE_UP)
             "PGDN" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_PAGE_DOWN)
+            "DSK_ESC" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_ESCAPE)
+            "DSK_TAB", "DSK_INDENT" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_TAB)
+            "DSK_STABF", "DSK_DEDENT" -> sendShiftKey(android.view.KeyEvent.KEYCODE_TAB)
+            "DSK_UP" -> sendDesktopArrow(android.view.KeyEvent.KEYCODE_DPAD_UP)
+            "DSK_DOWN" -> sendDesktopArrow(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+            "DSK_LEFT" -> sendDesktopArrow(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
+            "DSK_RIGHT" -> sendDesktopArrow(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+            "DSK_PGUP" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_PAGE_UP)
+            "DSK_PGDN" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_PAGE_DOWN)
+            "DSK_HOME" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_MOVE_HOME)
+            "DSK_END" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_MOVE_END)
+            "DSK_F1" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_F1)
+            "DSK_BKSP" -> {
+                sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
+                checkAndDisarmDesktopSelectMode()
+            }
+            "DSK_DEL" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_FORWARD_DEL)
+            "DSK_ENTER" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_ENTER)
+            "DSK_UNDO" -> sendUndo()
+            "DSK_REDO" -> sendRedo()
+            "DSK_COPY" -> {
+                sendCtrlKey(android.view.KeyEvent.KEYCODE_C)
+                checkAndDisarmDesktopSelectMode()
+            }
+            "DSK_CUT" -> {
+                sendCtrlKey(android.view.KeyEvent.KEYCODE_X)
+                checkAndDisarmDesktopSelectMode()
+            }
+            "DSK_PASTE" -> sendCtrlKey(android.view.KeyEvent.KEYCODE_V)
+            "DSK_SELALL" -> sendCtrlKey(android.view.KeyEvent.KEYCODE_A)
+            "DSK_SAVE" -> sendCtrlKey(android.view.KeyEvent.KEYCODE_S)
+            "DSK_FINDREPLACE" -> sendCtrlKey(android.view.KeyEvent.KEYCODE_H)
+            "DSK_DUPLINE" -> sendCtrlKey(android.view.KeyEvent.KEYCODE_D)
+            "DSK_COMMENT" -> sendCtrlSlash()
+            "DSK_GOTOLINE" -> sendCtrlKey(android.view.KeyEvent.KEYCODE_G)
+            "DSK_DELLINE" -> sendCtrlShiftKey(android.view.KeyEvent.KEYCODE_K)
+            "DSK_SELWORD" -> sendCtrlShiftKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+            "DSK_SEL" -> toggleDesktopSelectMode()
             else -> {
                 var finalKey = key
                 if (key.length == 1 && key[0].isLetter()) {
@@ -1070,9 +1129,26 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
 
     override fun onLongPressBackspace() {
         val inputConnection = currentInputConnection ?: return
-        val currentText = inputConnection.getTextBeforeCursor(100000, 0)
-        if (!currentText.isNullOrEmpty()) {
-            inputConnection.deleteSurroundingText(currentText.length, 0)
+        val textBefore = inputConnection.getTextBeforeCursor(1000, 0) ?: return
+        if (textBefore.isEmpty()) return
+
+        val newlineIndex = textBefore.lastIndexOf('\n')
+        val deleteCount = if (newlineIndex == -1) {
+            textBefore.length
+        } else if (newlineIndex == textBefore.length - 1) {
+            1
+        } else {
+            textBefore.length - newlineIndex - 1
+        }
+
+        if (deleteCount > 0) {
+            inputConnection.deleteSurroundingText(deleteCount, 0)
+            val deleteFromWord = minOf(deleteCount, wordLengthBeforeCursor)
+            val startIndex = maxOf(0, wordLengthBeforeCursor - deleteFromWord)
+            val endIndex = minOf(currentWord.length, wordLengthBeforeCursor)
+            if (startIndex < endIndex) currentWord.delete(startIndex, endIndex)
+            wordLengthBeforeCursor = startIndex
+            updateSuggestions()
         }
     }
 
@@ -1191,6 +1267,68 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
         )
         ic?.sendKeyEvent(downEvent)
         ic?.sendKeyEvent(upEvent)
+    }
+
+    private fun sendCtrlKey(keyCode: Int) {
+        val meta = android.view.KeyEvent.META_CTRL_ON or android.view.KeyEvent.META_CTRL_LEFT_ON
+        currentInputConnection?.let { ic ->
+            ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_DOWN, keyCode, 0, meta))
+            ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_UP, keyCode, 0, meta))
+        }
+    }
+
+    private fun sendShiftKey(keyCode: Int) {
+        val meta = android.view.KeyEvent.META_SHIFT_ON or android.view.KeyEvent.META_SHIFT_LEFT_ON
+        currentInputConnection?.let { ic ->
+            ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_DOWN, keyCode, 0, meta))
+            ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_UP, keyCode, 0, meta))
+        }
+    }
+
+    private fun sendCtrlShiftKey(keyCode: Int) {
+        val meta = android.view.KeyEvent.META_CTRL_ON or android.view.KeyEvent.META_CTRL_LEFT_ON or android.view.KeyEvent.META_SHIFT_ON or android.view.KeyEvent.META_SHIFT_LEFT_ON
+        currentInputConnection?.let { ic ->
+            ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_DOWN, keyCode, 0, meta))
+            ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_UP, keyCode, 0, meta))
+        }
+    }
+
+    private fun sendCtrlSlash() {
+        val meta = android.view.KeyEvent.META_CTRL_ON or android.view.KeyEvent.META_CTRL_LEFT_ON
+        currentInputConnection?.let { ic ->
+            ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_SLASH, 0, meta))
+            ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_SLASH, 0, meta))
+        }
+    }
+
+    private var isDesktopSelectMode = false
+
+    private fun toggleDesktopSelectMode() {
+        isDesktopSelectMode = !isDesktopSelectMode
+        val root = mainView ?: return
+        val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view) ?: return
+        keyboardView.setDesktopSelectMode(isDesktopSelectMode)
+    }
+
+    private fun checkAndDisarmDesktopSelectMode() {
+        if (isDesktopSelectMode) {
+            isDesktopSelectMode = false
+            val root = mainView ?: return
+            val keyboardView = root.findViewById<KeyboardView>(R.id.keyboard_view) ?: return
+            keyboardView.setDesktopSelectMode(false)
+        }
+    }
+
+    private fun sendDesktopArrow(keyCode: Int) {
+        if (isDesktopSelectMode) {
+            val meta = android.view.KeyEvent.META_SHIFT_ON or android.view.KeyEvent.META_SHIFT_LEFT_ON
+            currentInputConnection?.let { ic ->
+                ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_DOWN, keyCode, 0, meta))
+                ic.sendKeyEvent(android.view.KeyEvent(0, 0, android.view.KeyEvent.ACTION_UP, keyCode, 0, meta))
+            }
+        } else {
+            sendDownUpKeyEvents(keyCode)
+        }
     }
 
     override fun onLongPressEnter() {
