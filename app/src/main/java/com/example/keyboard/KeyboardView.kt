@@ -250,11 +250,32 @@ class KeyboardView @JvmOverloads constructor(
                     }
                 } else {
                     val originalSize = textPaint.textSize
-                    if (key.label.length > 1) {
+                    if (!isDesktopLayout && key.label.length > 1) {
                         textPaint.textSize = originalSize * 0.65f
                     }
-                    val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
-                    canvas.drawText(key.label, rect.centerX(), textY, textPaint)
+                    if (isDesktopLayout && textPaint.measureText(key.label) > rect.width() - 8f && key.label.contains(" ")) {
+                        val spaceIndex = key.label.indexOf(" ")
+                        val line1 = key.label.substring(0, spaceIndex)
+                        val line2 = key.label.substring(spaceIndex + 1)
+                        val textHeight = textPaint.descent() - textPaint.ascent()
+                        val textY1 = rect.centerY() - textHeight / 2 - ((textPaint.descent() + textPaint.ascent()) / 2)
+                        val textY2 = rect.centerY() + textHeight / 2 - ((textPaint.descent() + textPaint.ascent()) / 2)
+                        canvas.drawText(line1, rect.centerX(), textY1, textPaint)
+                        canvas.drawText(line2, rect.centerX(), textY2, textPaint)
+                    } else if (isDesktopLayout && textPaint.measureText(key.label) > rect.width() - 8f) {
+                        // Force split in half if no space
+                        val mid = key.label.length / 2
+                        val line1 = key.label.substring(0, mid)
+                        val line2 = key.label.substring(mid)
+                        val textHeight = textPaint.descent() - textPaint.ascent()
+                        val textY1 = rect.centerY() - textHeight / 2 - ((textPaint.descent() + textPaint.ascent()) / 2)
+                        val textY2 = rect.centerY() + textHeight / 2 - ((textPaint.descent() + textPaint.ascent()) / 2)
+                        canvas.drawText(line1, rect.centerX(), textY1, textPaint)
+                        canvas.drawText(line2, rect.centerX(), textY2, textPaint)
+                    } else {
+                        val textY = rect.centerY() - ((textPaint.descent() + textPaint.ascent()) / 2)
+                        canvas.drawText(key.label, rect.centerX(), textY, textPaint)
+                    }
                     textPaint.textSize = originalSize
                 }
                 
@@ -265,15 +286,22 @@ class KeyboardView @JvmOverloads constructor(
                     var currentSize = 14f * resources.displayMetrics.scaledDensity
                     hintPaint.textSize = currentSize
                     val maxWidth = rect.width() - 8f
-                    while (hintPaint.measureText(it) > maxWidth && currentSize > 8f) {
-                        currentSize -= 1f
-                        hintPaint.textSize = currentSize
+                    var textToDraw = it
+                    if (isDesktopLayout) {
+                        if (hintPaint.measureText(it) > maxWidth) {
+                            textToDraw = android.text.TextUtils.ellipsize(it, android.text.TextPaint(hintPaint), maxWidth, android.text.TextUtils.TruncateAt.END).toString()
+                        }
+                    } else {
+                        while (hintPaint.measureText(it) > maxWidth && currentSize > 8f) {
+                            currentSize -= 1f
+                            hintPaint.textSize = currentSize
+                        }
                     }
                     var hintY = rect.bottom - 10f
                     if (hintY + hintPaint.descent() > rect.bottom) {
                         hintY = rect.bottom - hintPaint.descent() - 2f
                     }
-                    canvas.drawText(it, rect.centerX(), hintY, hintPaint)
+                    canvas.drawText(textToDraw, rect.centerX(), hintY, hintPaint)
                     hintPaint.textAlign = originalAlign
                     hintPaint.textSize = originalSize
                 }
@@ -285,16 +313,23 @@ class KeyboardView @JvmOverloads constructor(
                     var currentSize = 14f * resources.displayMetrics.scaledDensity
                     hintPaint.textSize = currentSize
                     val maxWidth = rect.width() / 2f - 4f
-                    while (hintPaint.measureText(it) > maxWidth && currentSize > 8f) {
-                        currentSize -= 1f
-                        hintPaint.textSize = currentSize
+                    var textToDraw = it
+                    if (isDesktopLayout) {
+                        if (hintPaint.measureText(it) > maxWidth) {
+                            textToDraw = android.text.TextUtils.ellipsize(it, android.text.TextPaint(hintPaint), maxWidth, android.text.TextUtils.TruncateAt.END).toString()
+                        }
+                    } else {
+                        while (hintPaint.measureText(it) > maxWidth && currentSize > 8f) {
+                            currentSize -= 1f
+                            hintPaint.textSize = currentSize
+                        }
                     }
                     val hintX = rect.right - 8f
                     var hintY = rect.top + 22f
                     if (hintY + hintPaint.ascent() < rect.top) {
                         hintY = rect.top - hintPaint.ascent() + 2f
                     }
-                    canvas.drawText(it, hintX, hintY, hintPaint)
+                    canvas.drawText(textToDraw, hintX, hintY, hintPaint)
                     hintPaint.textAlign = originalAlign
                     hintPaint.textSize = originalSize
                 }
