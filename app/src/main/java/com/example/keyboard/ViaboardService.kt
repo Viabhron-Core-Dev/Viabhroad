@@ -18,9 +18,27 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 
-class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
+class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, DesktopKeyListener {
     private lateinit var logKeeper: TheLogKeeper
     private var mainView: View? = null
+    private var desktopKeyboardView: DesktopKeyboardView? = null
+    
+    private fun switchToDesktopView() {
+        if (desktopKeyboardView == null) {
+            desktopKeyboardView = DesktopKeyboardView(this)
+            desktopKeyboardView?.listener = this
+        }
+        setInputView(desktopKeyboardView)
+    }
+
+    override fun onDesktopKey(code: String) {
+        if (code == "MODE_ALPHABET") {
+            setInputView(mainView)
+            switchKeyboardLayout(R.xml.kbd_qwerty)
+        } else {
+            onKeyPress(code)
+        }
+    }
     
     private lateinit var dictionaryEngine: DictionaryEngine
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -1025,7 +1043,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "MODE_SYMBOLS_SHIFT" -> switchKeyboardLayout(R.xml.kbd_symbols_shift)
             "MODE_ALPHABET" -> switchKeyboardLayout(R.xml.kbd_qwerty)
             "MODE_NAVIGATION" -> switchKeyboardLayout(R.xml.kbd_navigation)
-            "MODE_DESKTOP" -> switchKeyboardLayout(R.xml.kbd_desktop)
+            "MODE_DESKTOP" -> switchToDesktopView()
             "MODE_NUMPAD" -> switchKeyboardLayout(R.xml.kbd_numpad_extended)
             "MODE_EMOJI" -> {
                 isEmojiModalOpen = true
@@ -1062,6 +1080,10 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener {
             "DSK_DOWN" -> sendDesktopArrow(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
             "DSK_LEFT" -> sendDesktopArrow(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
             "DSK_RIGHT" -> sendDesktopArrow(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+            "DSK_SEL_UP" -> sendShiftKey(android.view.KeyEvent.KEYCODE_DPAD_UP)
+            "DSK_SEL_DOWN" -> sendShiftKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+            "DSK_SEL_LEFT" -> sendShiftKey(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
+            "DSK_SEL_RIGHT" -> sendShiftKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
             "DSK_PGUP" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_PAGE_UP)
             "DSK_PGDN" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_PAGE_DOWN)
             "DSK_HOME" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_MOVE_HOME)
