@@ -13,35 +13,36 @@
         <Key codes="0" label="0" sublabel="⁰ ∅" longPress="ACCENT_0" weight="1.0" />
     </Row>
     <Row>
-        <Key codes="DSK_ESC" label="ESC" sublabel="Esc" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_TAB" label="TAB" sublabel="Tab" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_STABF" label="⇤TAB" sublabel="Sh+Tab" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_UP" label="↑" sublabel="Up" sublabel2="PgUp" longPress="DSK_PGUP" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_HOME" label="HOME" sublabel="Home" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_END" label="END" sublabel="End" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_F1" label="F1" sublabel="F1" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_FINDREPLACE" label="FIND+" sublabel="Ctrl+H" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_UNDO" label="UNDO" sublabel="Ctrl+Z" weight="1.1" isFunctional="true" />
+        <Key codes="DSK_ESC" label="ESC" sublabel="Esc" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_TAB" label="TAB" sublabel="Tab" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_STABF" label="⇤TAB" sublabel="Sh+Tab" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_UP" label="↑" sublabel="Up" sublabel2="PgUp" longPress="DSK_PGUP" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_HOME" label="HOME" sublabel="Home" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_END" label="END" sublabel="End" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_F1" label="F1" sublabel="F1" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_FINDREPLACE" label="FIND+" sublabel="Ctrl+H" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_UNDO" label="UNDO" sublabel="Ctrl+Z" weight="1.05" isFunctional="true" />
     </Row>
     <Row>
-        <Key codes="DSK_SELWORD" label="SEL WRD" sublabel="Ct+Sh+→" sublabel2="SelAll ↗" longPress="DSK_SELALL" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_COPY" label="COPY" sublabel="Ctrl+C" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_CUT" label="CUT" sublabel="Ctrl+X" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_PASTE" label="PASTE" sublabel="Ctrl+V" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_LEFT" label="←" sublabel="Left" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_SEL" label="SEL" sublabel="Shift" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_RIGHT" label="→" sublabel="Right" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_REDO" label="REDO" sublabel="Ctrl+Y" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_BKSP" label="⌫" sublabel="Bksp" weight="1.1" isFunctional="true" />
+        <Key codes="DSK_SELWORD" label="SEL WRD" sublabel="Ct+Sh+→" sublabel2="SelAll ↗" longPress="DSK_SELALL" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_COPY" label="COPY" sublabel="Ctrl+C" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_CUT" label="CUT" sublabel="Ctrl+X" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_PASTE" label="PASTE" sublabel="Ctrl+V" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_LEFT" label="←" sublabel="Left" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_SEL" label="SEL" sublabel="Shift" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_RIGHT" label="→" sublabel="Right" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_REDO" label="REDO" sublabel="Ctrl+Y" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_BKSP" label="⌫" sublabel="Bksp" weight="1.05" isFunctional="true" />
     </Row>
     <Row>
-        <Key codes="DSK_DUPLINE" label="DUP" sublabel="Ctrl+D" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_COMMENT" label="REM" sublabel="Ctrl+/" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_GOTOLINE" label="GOTO" sublabel="Ctrl+G" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_INDENT" label="INDENT" sublabel="Tab" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_DOWN" label="↓" sublabel="Down" sublabel2="PgDn ↗" longPress="DSK_PGDN" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_DEDENT" label="DEDENT" sublabel="Sh+Tab" weight="1.1" isFunctional="true" />
-        <Key codes="DSK_DEL" label="DEL" sublabel="Del" sublabel2="DelLine ↗" longPress="DSK_DELLINE" weight="1.1" isFunctional="true" />
+        <Key codes="DSK_DUPLINE" label="DUP" sublabel="Ctrl+D" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_COMMENT" label="REM" sublabel="Ctrl+/" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_GOTOLINE" label="GOTO" sublabel="Ctrl+G" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_INDENT" label="INDENT" sublabel="Tab" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_DOWN" label="↓" sublabel="Down" sublabel2="PgDn ↗" longPress="DSK_PGDN" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_DEDENT" label="DEDENT" sublabel="Sh+Tab" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_ENTER" label="↵" sublabel="Enter" sublabel2="Save ↗" longPress="DSK_SAVE" weight="1.05" isFunctional="true" />
+        <Key codes="DSK_DEL" label="DEL" sublabel="Del" sublabel2="DelLine ↗" longPress="DSK_DELLINE" weight="1.05" isFunctional="true" />
     </Row>
     <Row>
         <Key codes="MODE_ALPHABET" label="ABC" weight="1.5" isFunctional="true" />

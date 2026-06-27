@@ -196,18 +196,6 @@ class KeyboardView @JvmOverloads constructor(
                 currentX += keyWidth
             }
         }
-
-        if (isDesktopLayout) {
-            for (row in kbd.rows) {
-                for (key in row.keys) {
-                    if (key.codes == "DSK_UP") {
-                        key.x += key.width * 1.5f
-                    } else if (key.codes == "DSK_DOWN") {
-                        key.x += key.width * 0.5f
-                    }
-                }
-            }
-        }
     }
 
     override fun invalidate() {
@@ -274,8 +262,17 @@ class KeyboardView @JvmOverloads constructor(
                     val originalAlign = hintPaint.textAlign
                     val originalSize = hintPaint.textSize
                     hintPaint.textAlign = Paint.Align.CENTER
-                    hintPaint.textSize = 14f * resources.displayMetrics.scaledDensity
-                    val hintY = rect.bottom - 10f
+                    var currentSize = 14f * resources.displayMetrics.scaledDensity
+                    hintPaint.textSize = currentSize
+                    val maxWidth = rect.width() - 8f
+                    while (hintPaint.measureText(it) > maxWidth && currentSize > 8f) {
+                        currentSize -= 1f
+                        hintPaint.textSize = currentSize
+                    }
+                    var hintY = rect.bottom - 10f
+                    if (hintY + hintPaint.descent() > rect.bottom) {
+                        hintY = rect.bottom - hintPaint.descent() - 2f
+                    }
                     canvas.drawText(it, rect.centerX(), hintY, hintPaint)
                     hintPaint.textAlign = originalAlign
                     hintPaint.textSize = originalSize
@@ -285,9 +282,18 @@ class KeyboardView @JvmOverloads constructor(
                     val originalAlign = hintPaint.textAlign
                     val originalSize = hintPaint.textSize
                     hintPaint.textAlign = Paint.Align.RIGHT
-                    hintPaint.textSize = 14f * resources.displayMetrics.scaledDensity
+                    var currentSize = 14f * resources.displayMetrics.scaledDensity
+                    hintPaint.textSize = currentSize
+                    val maxWidth = rect.width() / 2f - 4f
+                    while (hintPaint.measureText(it) > maxWidth && currentSize > 8f) {
+                        currentSize -= 1f
+                        hintPaint.textSize = currentSize
+                    }
                     val hintX = rect.right - 8f
-                    val hintY = rect.top + 22f
+                    var hintY = rect.top + 22f
+                    if (hintY + hintPaint.ascent() < rect.top) {
+                        hintY = rect.top - hintPaint.ascent() + 2f
+                    }
                     canvas.drawText(it, hintX, hintY, hintPaint)
                     hintPaint.textAlign = originalAlign
                     hintPaint.textSize = originalSize
@@ -576,6 +582,14 @@ class KeyboardView @JvmOverloads constructor(
             tracker.isPressedValid = false
             invalidate()
         } else {
+            if (key.longPress != null && key.longPress!!.startsWith("DSK_")) {
+                listener?.onKeyPress(key.longPress!!)
+                tracker.pressedKey = null
+                tracker.isPressedValid = false
+                invalidate()
+                return
+            }
+
             val options = if (key.longPress != null) {
                 if (key.longPress!!.startsWith("ACCENT_")) {
                     getAccentsForKey(key.codes)
