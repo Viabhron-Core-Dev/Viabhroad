@@ -583,16 +583,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         wordLengthBeforeCursor = 0
         wordLengthAfterCursor = 0
         
-        if (isIncognitoActive()) {
-            updateSuggestions()
-            return
-        }
-        
-        coroutineScope.launch {
-            // Learn new word dynamically
-            dictionaryEngine.insertWord(finalWord, prevWord = prevToSave, prevPrevWord = prevPrevToSave)
-            updateSuggestions()
-        }
+        updateSuggestions()
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
