@@ -336,6 +336,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         tvSuggestion1?.setOnClickListener {
             val typed = tvSuggestion1?.text.toString()
             if (typed.isNotEmpty()) {
+                if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "SLOT1_TAPPED | typed=$typed | action=kept")
                 val inputConnection = currentInputConnection
                 if (inputConnection != null) {
                     inputConnection.commitText(" ", 1)
@@ -345,8 +346,20 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                 }
             }
         }
-        tvSuggestion2?.setOnClickListener { onSuggestionClicked(tvSuggestion2?.text.toString()) }
-        tvSuggestion3?.setOnClickListener { onSuggestionClicked(tvSuggestion3?.text.toString()) }
+        tvSuggestion2?.setOnClickListener {
+            val suggestion = tvSuggestion2?.text.toString()
+            if (suggestion.isNotEmpty()) {
+                if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "SUGGESTION_ACCEPTED | typed=$currentWord | accepted=$suggestion | slot=2")
+                onSuggestionClicked(suggestion)
+            }
+        }
+        tvSuggestion3?.setOnClickListener {
+            val suggestion = tvSuggestion3?.text.toString()
+            if (suggestion.isNotEmpty()) {
+                if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "SUGGESTION_ACCEPTED | typed=$currentWord | accepted=$suggestion | slot=3")
+                onSuggestionClicked(suggestion)
+            }
+        }
 
         tvSuggestion1?.setOnLongClickListener { onSuggestionLongClicked(tvSuggestion1?.text.toString()); true }
         tvSuggestion2?.setOnLongClickListener { onSuggestionLongClicked(tvSuggestion2?.text.toString()); true }
@@ -909,6 +922,16 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
             if (showPaste) {
                 suggestionPasteDivider?.visibility = View.VISIBLE
             }
+            
+            if (!isIncognitoActive()) {
+                if (list.isNotEmpty()) {
+                    val s2 = list.getOrNull(0) ?: ""
+                    val s3 = list.getOrNull(1) ?: ""
+                    logKeeper.log("INFO", "ViaboardService", "SUGGESTION_SHOWN | typed=$prefix | slot1=$prefix | slot2=$s2 | slot3=$s3 | prefix_length=${prefix.length}")
+                } else {
+                    logKeeper.log("INFO", "ViaboardService", "NO_SUGGESTION | typed=$prefix | prefix_length=${prefix.length}")
+                }
+            }
         }
     }
 
@@ -987,6 +1010,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                     val deleteCount = correctedWord.length + 1
                     inputConnection.deleteSurroundingText(deleteCount, 0)
                     inputConnection.commitText(lastAutocorrectedWord, 1)
+                    if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_UNDONE | original=$lastAutocorrectedWord | was_corrected_to=$correctedWord")
                     currentWord.clear()
                     currentWord.append(lastAutocorrectedWord)
                     wordLengthBeforeCursor = lastAutocorrectedWord.length
@@ -1036,6 +1060,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                     val typedStr = currentWord.toString().lowercase()
                     val topStr = topWordText.lowercase()
                     
+                    var blockReason = ""
+                    
                     // Confidence threshold
                     if (!dictionaryEngine.wordExists(typedStr)) {
                         if (kotlin.math.abs(topStr.length - typedStr.length) <= 1) {
@@ -1055,8 +1081,14 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                             diffCount += (topStr.length - i) + (typedStr.length - j)
                             if (diffCount == 1) {
                                 shouldAutocorrect = true
+                            } else {
+                                blockReason = "edit_distance_too_large"
                             }
+                        } else {
+                            blockReason = "edit_distance_too_large"
                         }
+                    } else {
+                        blockReason = "word_exists"
                     }
                     
                     if (shouldAutocorrect) {
@@ -1067,6 +1099,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                         }
                         inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
                         inputConnection.commitText(topWord + " ", 1)
+                        if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_FIRED | typed=$originalTyped | corrected_to=$topWord | edit_distance=1")
                         commitWord(topWordText)
                         lastSpaceTime = now
                         wordLengthBeforeCursor = 0
@@ -1075,6 +1108,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                         didAutocorrect = true
                         lastAutocorrectedWord = originalTyped
                         return
+                    } else if (blockReason.isNotEmpty() && !isIncognitoActive()) {
+                        logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_BLOCKED | typed=$originalTyped | top_suggestion=$topWordText | reason=$blockReason")
                     }
                 }
                 
@@ -1150,6 +1185,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                     val deleteCount = correctedWord.length + 1
                     inputConnection.deleteSurroundingText(deleteCount, 0)
                     inputConnection.commitText(lastAutocorrectedWord, 1)
+                    if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_UNDONE | original=$lastAutocorrectedWord | was_corrected_to=$correctedWord")
                     currentWord.clear()
                     currentWord.append(lastAutocorrectedWord)
                     wordLengthBeforeCursor = lastAutocorrectedWord.length
