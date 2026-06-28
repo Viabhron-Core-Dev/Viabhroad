@@ -126,6 +126,47 @@ class DictionaryEngine(private val context: Context) {
         }
     }
 
+    fun wordExists(word: String): Boolean {
+        val lowerWord = word.lowercase()
+        // Check personal dictionary
+        try {
+            val exists = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                personalDao.getByShortcut(lowerWord) != null
+            }
+            if (exists) return true
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
+        var current = trie
+        for (char in lowerWord) {
+            if (!current.children.containsKey(char)) {
+                return false
+            }
+            current = current.children[char]!!
+        }
+        return current.isWord
+    }
+
+    fun addToPersonalDictionary(word: String) {
+        scope.launch {
+            try {
+                val lowerWord = word.lowercase()
+                val existing = personalDao.getByShortcut(lowerWord)
+                if (existing == null) {
+                    val item = PersonalDictionaryItem(
+                        word = word,
+                        shortcut = lowerWord,
+                        frequency = 1
+                    )
+                    personalDao.insert(item)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun insertWord(word: String, frequency: Int = 1, prevWord: String? = null, prevPrevWord: String? = null) {
         var current = trie
         for (char in word) {

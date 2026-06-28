@@ -69,6 +69,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
     private var btnIncognito: android.widget.ImageButton? = null
     private var toolbarContainer: android.view.View? = null
     
+    private var lastAutocorrectedWord: String = ""
+    private var didAutocorrect: Boolean = false
+    
     private var tvSuggestionPasteText: android.widget.TextView? = null
     private var btnSuggestionPasteClose: android.widget.ImageView? = null
     private var clipboardLastDismissedText: String? = null
@@ -330,7 +333,18 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         tvSuggestionPasteText = root.findViewById(R.id.tv_suggestion_paste_text)
         btnSuggestionPasteClose = root.findViewById(R.id.btn_suggestion_paste_close)
         
-        tvSuggestion1?.setOnClickListener { onSuggestionClicked(tvSuggestion1?.text.toString()) }
+        tvSuggestion1?.setOnClickListener {
+            val typed = tvSuggestion1?.text.toString()
+            if (typed.isNotEmpty()) {
+                val inputConnection = currentInputConnection
+                if (inputConnection != null) {
+                    inputConnection.commitText(" ", 1)
+                    commitWord(typed)
+                    dictionaryEngine.addToPersonalDictionary(typed)
+                    clearSuggestions()
+                }
+            }
+        }
         tvSuggestion2?.setOnClickListener { onSuggestionClicked(tvSuggestion2?.text.toString()) }
         tvSuggestion3?.setOnClickListener { onSuggestionClicked(tvSuggestion3?.text.toString()) }
 
@@ -863,17 +877,18 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         
         if (prefix.isBlank()) {
             suggestionJob = coroutineScope.launch {
-                val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 3)
+                val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 2)
                 currentSuggestions = list
                 
-                tvSuggestion1?.text = list.getOrNull(0) ?: ""
-                tvSuggestion1?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+                tvSuggestion1?.visibility = View.GONE
                 
-                tvSuggestion2?.text = list.getOrNull(1) ?: ""
-                tvSuggestion2?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
+                tvSuggestion2?.text = list.getOrNull(0) ?: ""
+                tvSuggestion2?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+                tvSuggestion2?.setTextColor(android.graphics.Color.WHITE)
                 
-                tvSuggestion3?.text = list.getOrNull(2) ?: ""
-                tvSuggestion3?.visibility = if (list.size > 2) View.VISIBLE else View.GONE
+                tvSuggestion3?.text = list.getOrNull(1) ?: ""
+                tvSuggestion3?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
+                tvSuggestion3?.setTextColor(android.graphics.Color.WHITE)
             }
             if (showPaste) {
                 suggestionPasteDivider?.visibility = View.GONE
@@ -882,23 +897,26 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         }
 
         suggestionJob = coroutineScope.launch {
-            val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 3)
+            val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 2)
             currentSuggestions = list
             
-            tvSuggestion1?.text = list.getOrNull(0) ?: ""
-            tvSuggestion1?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+            tvSuggestion1?.text = prefix
+            tvSuggestion1?.visibility = View.VISIBLE
+            tvSuggestion1?.setTextColor(android.graphics.Color.parseColor("#AAAAAA"))
             
-            tvSuggestion2?.text = list.getOrNull(1) ?: ""
-            tvSuggestion2?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
+            tvSuggestion2?.text = list.getOrNull(0) ?: ""
+            tvSuggestion2?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+            tvSuggestion2?.setTextColor(android.graphics.Color.WHITE)
             
-            tvSuggestion3?.text = list.getOrNull(2) ?: ""
-            tvSuggestion3?.visibility = if (list.size > 2) View.VISIBLE else View.GONE
+            tvSuggestion3?.text = list.getOrNull(1) ?: ""
+            tvSuggestion3?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
+            tvSuggestion3?.setTextColor(android.graphics.Color.WHITE)
             
-            suggestionDivider1?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
-            suggestionDivider2?.visibility = if (list.size > 2) View.VISIBLE else View.GONE
+            suggestionDivider1?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+            suggestionDivider2?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
             
             if (showPaste) {
-                suggestionPasteDivider?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+                suggestionPasteDivider?.visibility = View.VISIBLE
             }
         }
     }
@@ -965,8 +983,28 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
 
     override fun onKeyPress(key: String) {
         val inputConnection = currentInputConnection ?: return
+        
+        if (key != "DEL" && key != "DSK_BKSP" && key != "SPACE") {
+            didAutocorrect = false
+            lastAutocorrectedWord = ""
+        }
+        
         when (key) {
             "DEL" -> {
+                if (didAutocorrect && lastAutocorrectedWord.isNotEmpty()) {
+                    val correctedWord = currentSuggestions.getOrNull(0) ?: ""
+                    val deleteCount = correctedWord.length + 1
+                    inputConnection.deleteSurroundingText(deleteCount, 0)
+                    inputConnection.commitText(lastAutocorrectedWord, 1)
+                    currentWord.clear()
+                    currentWord.append(lastAutocorrectedWord)
+                    wordLengthBeforeCursor = lastAutocorrectedWord.length
+                    didAutocorrect = false
+                    lastAutocorrectedWord = ""
+                    updateSuggestions()
+                    return
+                }
+                
                 val selectedText = inputConnection.getSelectedText(0)
                 if (selectedText != null && selectedText.isNotEmpty()) {
                     inputConnection.commitText("", 1)
@@ -985,6 +1023,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                 updateShiftState()
             }
             "SPACE" -> {
+                didAutocorrect = false
+                val originalTyped = currentWord.toString()
                 val now = System.currentTimeMillis()
                 val textBeforeCursor = inputConnection.getTextBeforeCursor(2, 0) ?: ""
                 
@@ -1001,13 +1041,34 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                     val topWordText = currentSuggestions[0]
                     val isCapitalized = currentWord[0].isUpperCase()
                     
-                    // Only auto-correct if aggressiveness is high OR it's a very close match (length difference <= 2).
-                    // This prevents French words from being aggressively replaced by English words just because they share a prefix.
-                    val prefs = getSharedPreferences("keyboard_prefs", android.content.Context.MODE_PRIVATE)
-                    val aggro = prefs.getFloat("autocorrect_aggressiveness", 0.5f)
-                    val isCloseMatch = kotlin.math.abs(topWordText.length - currentWord.length) <= 1
+                    var shouldAutocorrect = false
+                    val typedStr = currentWord.toString().lowercase()
+                    val topStr = topWordText.lowercase()
                     
-                    if (aggro >= 0.8f || isCloseMatch) {
+                    // Confidence threshold
+                    if (!dictionaryEngine.wordExists(typedStr)) {
+                        if (kotlin.math.abs(topStr.length - typedStr.length) <= 1) {
+                            var diffCount = 0
+                            var i = 0
+                            var j = 0
+                            while (i < topStr.length && j < typedStr.length) {
+                                if (topStr[i] != typedStr[j]) {
+                                    diffCount++
+                                    if (topStr.length > typedStr.length) i++
+                                    else if (typedStr.length > topStr.length) j++
+                                    else { i++; j++ }
+                                } else {
+                                    i++; j++
+                                }
+                            }
+                            diffCount += (topStr.length - i) + (typedStr.length - j)
+                            if (diffCount == 1) {
+                                shouldAutocorrect = true
+                            }
+                        }
+                    }
+                    
+                    if (shouldAutocorrect) {
                         val topWord = if (isCapitalized) {
                             topWordText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
                         } else {
@@ -1020,6 +1081,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                         wordLengthBeforeCursor = 0
                         wordLengthAfterCursor = 0
                         updateShiftState()
+                        didAutocorrect = true
+                        lastAutocorrectedWord = originalTyped
                         return
                     }
                 }
@@ -1030,6 +1093,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                 }
                 lastSpaceTime = now
                 updateShiftState()
+                lastAutocorrectedWord = ""
             }
             "ENTER" -> handleEnterAction()
             "SHIFT" -> {
@@ -1090,6 +1154,19 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
             "DSK_END" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_MOVE_END)
             "DSK_F1" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_F1)
             "DSK_BKSP" -> {
+                if (didAutocorrect && lastAutocorrectedWord.isNotEmpty()) {
+                    val correctedWord = currentSuggestions.getOrNull(0) ?: ""
+                    val deleteCount = correctedWord.length + 1
+                    inputConnection.deleteSurroundingText(deleteCount, 0)
+                    inputConnection.commitText(lastAutocorrectedWord, 1)
+                    currentWord.clear()
+                    currentWord.append(lastAutocorrectedWord)
+                    wordLengthBeforeCursor = lastAutocorrectedWord.length
+                    didAutocorrect = false
+                    lastAutocorrectedWord = ""
+                    updateSuggestions()
+                    return
+                }
                 sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
                 checkAndDisarmDesktopSelectMode()
             }
