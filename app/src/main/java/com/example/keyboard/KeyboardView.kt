@@ -283,7 +283,7 @@ class KeyboardView @JvmOverloads constructor(
                     val originalAlign = hintPaint.textAlign
                     val originalSize = hintPaint.textSize
                     hintPaint.textAlign = Paint.Align.CENTER
-                    var currentSize = 14f * resources.displayMetrics.scaledDensity
+                    var currentSize = 14f * (resources.configuration.fontScale * resources.displayMetrics.density)
                     hintPaint.textSize = currentSize
                     val maxWidth = rect.width() - 8f
                     var textToDraw = it
@@ -310,7 +310,7 @@ class KeyboardView @JvmOverloads constructor(
                     val originalAlign = hintPaint.textAlign
                     val originalSize = hintPaint.textSize
                     hintPaint.textAlign = Paint.Align.RIGHT
-                    var currentSize = 14f * resources.displayMetrics.scaledDensity
+                    var currentSize = 14f * (resources.configuration.fontScale * resources.displayMetrics.density)
                     hintPaint.textSize = currentSize
                     val maxWidth = rect.width() / 2f - 4f
                     var textToDraw = it

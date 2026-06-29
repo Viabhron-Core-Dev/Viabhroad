@@ -175,7 +175,7 @@ class DesktopKeyboardView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         
-        val density = resources.displayMetrics.scaledDensity
+        val density = resources.configuration.fontScale * resources.displayMetrics.density
         val normalBgColor = Color.parseColor("#333333")
         val functionalBgColor = Color.parseColor("#262626")
         val pressedBgColor = Color.parseColor("#555555")
