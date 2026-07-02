@@ -24,7 +24,7 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("keyboard_prefs", Context.MODE_PRIVATE)
     
-    var autoCorrectAggressiveness by remember { mutableStateOf(0.5f) }
+    var autoCorrectAggressiveness by remember { mutableStateOf(prefs.getFloat("autocorrect_aggressiveness", 0.5f)) }
     var useTransformerEngine by remember { mutableStateOf(prefs.getBoolean("use_transformer", false)) }
     
     val scope = rememberCoroutineScope()
@@ -127,7 +127,10 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
             Spacer(modifier = Modifier.height(8.dp))
             Slider(
                 value = autoCorrectAggressiveness,
-                onValueChange = { autoCorrectAggressiveness = it },
+                onValueChange = { 
+                    autoCorrectAggressiveness = it
+                    prefs.edit().putFloat("autocorrect_aggressiveness", it).apply()
+                },
                 valueRange = 0f..1f,
                 steps = 10
             )

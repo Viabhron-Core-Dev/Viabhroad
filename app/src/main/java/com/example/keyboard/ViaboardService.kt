@@ -1052,7 +1052,11 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                     return
                 }
 
-                if (isAutocorrectEnabled && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].lowercase() != currentWord.toString().lowercase()) {
+                val prefs = getSharedPreferences("keyboard_prefs", android.content.Context.MODE_PRIVATE)
+                val autocorrectAggressiveness = prefs.getFloat("autocorrect_aggressiveness", 0.5f)
+                val isAutocorrectEnabledNow = autocorrectAggressiveness > 0.2f
+
+                if (isAutocorrectEnabledNow && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].lowercase() != currentWord.toString().lowercase()) {
                     val topWordText = currentSuggestions[0]
                     val isCapitalized = currentWord[0].isUpperCase()
                     
