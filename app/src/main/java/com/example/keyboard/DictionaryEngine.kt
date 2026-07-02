@@ -3,6 +3,7 @@ package com.example.keyboard
 import android.content.Context
 import kotlinx.coroutines.*
 import java.io.InputStream
+import com.example.logkeeper.TheLogKeeper
 import com.example.R
 
 class DictionaryEngine(private val context: Context) {
@@ -329,6 +330,107 @@ class DictionaryEngine(private val context: Context) {
         return results.sortedByDescending { it.second }.map { it.first }
     }
     
+    fun getFuzzyCorrections(typed: String, limit: Int = 3, isIncognito: Boolean = false): List<String> {
+        if (typed.length < 3) return emptyList() // too short to correct meaningfully
+        
+        val lowerTyped = typed.lowercase()
+        val candidates = mutableListOf<Pair<String, Int>>() // word to frequency
+        val maxEditDistance = if (typed.length <= 5) 1 else 2
+        val startTime = System.currentTimeMillis()
+        val timeCapMs = 150L // hard stop after 150ms regardless
+        
+        // Only search against words in the trie that share at least the first letter
+        // This bounds the search space dramatically
+        val firstChar = lowerTyped[0]
+        val firstNode = trie.children[firstChar] ?: return emptyList()
+        
+        // BFS through words starting with same first letter only
+        // Collect up to 3000 candidates from trie then compute edit distance
+        val wordCandidates = mutableListOf<Pair<String, Int>>()
+        collectWords(firstNode, firstChar.toString(), wordCandidates, 3000, startTime, timeCapMs)
+        
+        val elapsedCollect = System.currentTimeMillis() - startTime
+        if (elapsedCollect > timeCapMs) {
+            if (!isIncognito) TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "FUZZY_TIMEOUT | typed=$typed | time_ms=$elapsedCollect | partial_results=${wordCandidates.size}")
+        }
+        
+        if (wordCandidates.isEmpty()) return emptyList()
+        
+        // Compute edit distance for each candidate
+        for ((word, freq) in wordCandidates) {
+            if (System.currentTimeMillis() - startTime > timeCapMs) {
+                if (!isIncognito && elapsedCollect <= timeCapMs) { // log timeout if it happened during edit distance phase
+                    TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "FUZZY_TIMEOUT | typed=$typed | time_ms=${System.currentTimeMillis() - startTime} | partial_results=${wordCandidates.size}")
+                }
+                break
+            }
+            if (Math.abs(word.length - lowerTyped.length) > maxEditDistance) continue
+            val dist = editDistance(lowerTyped, word)
+            if (dist in 1..maxEditDistance && dist > 0) {
+                candidates.add(Pair(word, freq))
+            }
+        }
+        
+        val results = candidates
+            .sortedWith(compareBy({ editDistance(lowerTyped, it.first) }, { -it.second }))
+            .take(limit)
+            .map { it.first }
+            
+        if (!isIncognito) {
+            val elapsed = System.currentTimeMillis() - startTime
+            TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "FUZZY_SEARCH | typed=$typed | candidates_found=${candidates.size} | time_ms=$elapsed")
+        }
+            
+        return results
+    }
+
+    private fun collectWords(
+        node: TrieNode,
+        current: String,
+        results: MutableList<Pair<String, Int>>,
+        maxResults: Int,
+        startTime: Long,
+        timeCapMs: Long
+    ) {
+        if (System.currentTimeMillis() - startTime > timeCapMs) return
+        if (results.size >= maxResults) return
+        if (node.isWord && node.frequency > 0) {
+            results.add(Pair(current, node.frequency))
+        }
+        for ((char, child) in node.children) {
+            if (results.size >= maxResults) break
+            if (System.currentTimeMillis() - startTime > timeCapMs) break
+            collectWords(child, current + char, results, maxResults, startTime, timeCapMs)
+        }
+    }
+
+    fun editDistance(a: String, b: String): Int {
+        val m = a.length
+        val n = b.length
+        val dp = Array(m + 1) { IntArray(n + 1) }
+        for (i in 0..m) dp[i][0] = i
+        for (j in 0..n) dp[0][j] = j
+        for (i in 1..m) {
+            for (j in 1..n) {
+                dp[i][j] = if (a[i-1] == b[j-1]) {
+                    dp[i-1][j-1]
+                } else {
+                    1 + minOf(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+                }
+            }
+        }
+        // Also check transposition (swapped adjacent letters)
+        if (m == n) {
+            for (i in 1 until m) {
+                if (a[i] == b[i-1] && a[i-1] == b[i]) {
+                    val transposeDist = dp[m][n] - 1
+                    if (transposeDist < dp[m][n]) return transposeDist
+                }
+            }
+        }
+        return dp[m][n]
+    }
+
     // HeliBoard dictionary parsing blueprint (placeholder for actual implementation)
     fun loadHeliBoardDictionary(inputStream: InputStream) {
         scope.launch {

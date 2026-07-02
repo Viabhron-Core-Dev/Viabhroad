@@ -59,6 +59,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
     private var prevPrevWord: String? = null
     private var currentSuggestions = emptyList<String>()
     
+    private var isCurrentSuggestionsFuzzy = false
+    private var isShowingFuzzyAfterSpace = false
+    
     private var tvSuggestion1: android.widget.TextView? = null
     private var tvSuggestion2: android.widget.TextView? = null
     private var tvSuggestion3: android.widget.TextView? = null
@@ -349,14 +352,26 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         tvSuggestion2?.setOnClickListener {
             val suggestion = tvSuggestion2?.text.toString()
             if (suggestion.isNotEmpty()) {
-                if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "SUGGESTION_ACCEPTED | typed=$currentWord | accepted=$suggestion | slot=2")
+                if (!isIncognitoActive()) {
+                    if (isCurrentSuggestionsFuzzy) {
+                        logKeeper.log("INFO", "ViaboardService", "FUZZY_CORRECTION_ACCEPTED | typed=$currentWord | accepted=$suggestion | slot=2")
+                    } else {
+                        logKeeper.log("INFO", "ViaboardService", "SUGGESTION_ACCEPTED | typed=$currentWord | accepted=$suggestion | slot=2")
+                    }
+                }
                 onSuggestionClicked(suggestion)
             }
         }
         tvSuggestion3?.setOnClickListener {
             val suggestion = tvSuggestion3?.text.toString()
             if (suggestion.isNotEmpty()) {
-                if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "SUGGESTION_ACCEPTED | typed=$currentWord | accepted=$suggestion | slot=3")
+                if (!isIncognitoActive()) {
+                    if (isCurrentSuggestionsFuzzy) {
+                        logKeeper.log("INFO", "ViaboardService", "FUZZY_CORRECTION_ACCEPTED | typed=$currentWord | accepted=$suggestion | slot=3")
+                    } else {
+                        logKeeper.log("INFO", "ViaboardService", "SUGGESTION_ACCEPTED | typed=$currentWord | accepted=$suggestion | slot=3")
+                    }
+                }
                 onSuggestionClicked(suggestion)
             }
         }
@@ -705,7 +720,17 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
             wordLengthBeforeCursor = 0
             wordLengthAfterCursor = 0
             clearSuggestions()
+            isShowingFuzzyAfterSpace = false
             return
+        }
+        
+        if (isShowingFuzzyAfterSpace) {
+            val textBefore = currentInputConnection?.getTextBeforeCursor(1, 0) ?: ""
+            if (textBefore == " ") {
+                // still right after the space, keep fuzzy suggestions
+                return
+            }
+            isShowingFuzzyAfterSpace = false
         }
         
         extractWordAtCursor()
@@ -883,6 +908,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
             suggestionJob = coroutineScope.launch {
                 val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 2)
                 currentSuggestions = list
+                isCurrentSuggestionsFuzzy = false
                 
                 tvSuggestion1?.visibility = View.GONE
                 
@@ -903,6 +929,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         suggestionJob = coroutineScope.launch {
             val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 2)
             currentSuggestions = list
+            isCurrentSuggestionsFuzzy = false
             
             tvSuggestion1?.text = prefix
             tvSuggestion1?.visibility = View.VISIBLE
@@ -1114,6 +1141,66 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                         return
                     } else if (blockReason.isNotEmpty() && !isIncognitoActive()) {
                         logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_BLOCKED | typed=$originalTyped | top_suggestion=$topWordText | reason=$blockReason")
+                    }
+                }
+                
+                // Fuzzy correction fallback — only when prefix matching found nothing useful
+                if (currentSuggestions.isEmpty() || currentSuggestions[0].lowercase() == currentWord.toString().lowercase()) {
+                    val typed = currentWord.toString()
+                    if (typed.length >= 3 && !dictionaryEngine.wordExists(typed)) {
+                        val isIncognito = isIncognitoActive()
+                        val fuzzySuggestions = dictionaryEngine.getFuzzyCorrections(typed, limit = 3, isIncognito = isIncognito)
+                        if (fuzzySuggestions.isNotEmpty()) {
+                            val topFuzzy = fuzzySuggestions[0]
+                            val editDist = dictionaryEngine.editDistance(typed.lowercase(), topFuzzy.lowercase())
+                            
+                            val isMaxAggressive = autocorrectAggressiveness > 0.9f
+                            if (isAutocorrectEnabledNow && isMaxAggressive && editDist == 1) {
+                                // Auto-correct
+                                val isCapitalized = typed.isNotEmpty() && typed[0].isUpperCase()
+                                val finalTopFuzzy = if (isCapitalized) {
+                                    topFuzzy.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+                                } else {
+                                    topFuzzy
+                                }
+                                inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
+                                inputConnection.commitText(finalTopFuzzy + " ", 1)
+                                if (!isIncognito) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_FIRED | typed=$typed | corrected_to=$finalTopFuzzy | edit_distance=1")
+                                commitWord(topFuzzy)
+                                lastSpaceTime = now
+                                wordLengthBeforeCursor = 0
+                                wordLengthAfterCursor = 0
+                                updateShiftState()
+                                didAutocorrect = true
+                                lastAutocorrectedWord = typed
+                                return
+                            } else {
+                                // Update suggestion slots with fuzzy results
+                                currentSuggestions = fuzzySuggestions
+                                isCurrentSuggestionsFuzzy = true
+                                suggestionJob?.cancel()
+                                
+                                tvSuggestion1?.visibility = View.GONE
+                                tvSuggestion2?.text = fuzzySuggestions.getOrNull(0) ?: ""
+                                tvSuggestion2?.visibility = View.VISIBLE
+                                tvSuggestion3?.text = fuzzySuggestions.getOrNull(1) ?: ""
+                                tvSuggestion3?.visibility = if (fuzzySuggestions.size > 1) View.VISIBLE else View.GONE
+                                
+                                if (!isIncognito) {
+                                    logKeeper.log("INFO", "ViaboardService", "FUZZY_CORRECTION_SHOWN | typed=$typed | suggestion=$topFuzzy | edit_distance=$editDist")
+                                }
+                                
+                                // Do NOT auto-correct — show in bar, let user tap
+                                inputConnection.commitText(" ", 1)
+                                wordLengthBeforeCursor += 1
+                                isShowingFuzzyAfterSpace = true
+                                
+                                lastSpaceTime = now
+                                updateShiftState()
+                                lastAutocorrectedWord = ""
+                                return
+                            }
+                        }
                     }
                 }
                 
