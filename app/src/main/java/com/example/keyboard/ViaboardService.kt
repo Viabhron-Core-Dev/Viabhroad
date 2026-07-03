@@ -1154,18 +1154,17 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                             val topFuzzy = fuzzySuggestions[0]
                             val editDist = dictionaryEngine.editDistance(typed.lowercase(), topFuzzy.lowercase())
                             
-                            val isMaxAggressive = autocorrectAggressiveness > 0.9f
-                            if (isAutocorrectEnabledNow && isMaxAggressive && editDist == 1) {
+                            val editDist1Count = fuzzySuggestions.count { dictionaryEngine.editDistance(typed.lowercase(), it.lowercase()) == 1 }
+                            val exactlyOneCorrection = editDist1Count == 1
+                            val isAggressiveEnough = autocorrectAggressiveness > 0.7f
+                            val isProperNoun = typed.isNotEmpty() && typed[0].isUpperCase()
+                            
+                            if (isAutocorrectEnabledNow && exactlyOneCorrection && isAggressiveEnough && !isProperNoun) {
                                 // Auto-correct
-                                val isCapitalized = typed.isNotEmpty() && typed[0].isUpperCase()
-                                val finalTopFuzzy = if (isCapitalized) {
-                                    topFuzzy.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
-                                } else {
-                                    topFuzzy
-                                }
+                                val finalTopFuzzy = topFuzzy
                                 inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
                                 inputConnection.commitText(finalTopFuzzy + " ", 1)
-                                if (!isIncognito) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_FIRED | typed=$typed | corrected_to=$finalTopFuzzy | edit_distance=1")
+                                if (!isIncognito) logKeeper.log("INFO", "ViaboardService", "FUZZY_AUTOCORRECT | typed=$typed | corrected_to=$finalTopFuzzy | aggressiveness=$autocorrectAggressiveness")
                                 commitWord(topFuzzy)
                                 lastSpaceTime = now
                                 wordLengthBeforeCursor = 0
