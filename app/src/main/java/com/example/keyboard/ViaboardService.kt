@@ -1154,8 +1154,8 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                             val topFuzzy = fuzzySuggestions[0]
                             val editDist = dictionaryEngine.editDistance(typed.lowercase(), topFuzzy.lowercase())
                             
-                            val editDist1Count = fuzzySuggestions.count { dictionaryEngine.editDistance(typed.lowercase(), it.lowercase()) == 1 }
-                            val exactlyOneCorrection = editDist1Count == 1
+                            val topFuzzyEditDist = dictionaryEngine.editDistance(typed.lowercase(), topFuzzy.lowercase())
+                            val exactlyOneCorrection = topFuzzyEditDist == 1
                             val isAggressiveEnough = autocorrectAggressiveness > 0.7f
                             val isProperNoun = typed.isNotEmpty() && typed[0].isUpperCase()
                             
