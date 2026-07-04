@@ -1144,16 +1144,23 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                     }
                 }
                 
-                // Fuzzy correction fallback — only when prefix matching found nothing useful
-                if (currentSuggestions.isEmpty() || currentSuggestions[0].lowercase() == currentWord.toString().lowercase()) {
-                    val typed = currentWord.toString()
-                    if (typed.length >= 3 && !dictionaryEngine.wordExists(typed)) {
-                        val isIncognito = isIncognitoActive()
-                        val fuzzySuggestions = dictionaryEngine.getFuzzyCorrections(typed, limit = 3, isIncognito = isIncognito)
-                        if (fuzzySuggestions.isNotEmpty()) {
-                            val topFuzzy = fuzzySuggestions[0]
-                            val editDist = dictionaryEngine.editDistance(typed.lowercase(), topFuzzy.lowercase())
-                            
+                // Fuzzy correction fallback
+                val typed = currentWord.toString()
+                val topPrefixSuggestion = currentSuggestions.getOrNull(0) ?: ""
+                val prefixResultIsWeakMatch = topPrefixSuggestion.length > typed.length + 2
+                val shouldRunFuzzy = currentSuggestions.isEmpty() ||
+                    topPrefixSuggestion.lowercase() == typed.lowercase() ||
+                    prefixResultIsWeakMatch
+                
+                if (shouldRunFuzzy && typed.length >= 3 && !dictionaryEngine.wordExists(typed)) {
+                    val isIncognito = isIncognitoActive()
+                    val fuzzySuggestions = dictionaryEngine.getFuzzyCorrections(typed, limit = 3, isIncognito = isIncognito)
+                    if (fuzzySuggestions.isNotEmpty()) {
+                        val topFuzzy = fuzzySuggestions[0]
+                        val editDist = dictionaryEngine.editDistance(typed.lowercase(), topFuzzy.lowercase())
+                        
+                        val isFuzzyBetter = editDist == 1 && topFuzzy.length <= typed.length + 1
+                        if (currentSuggestions.isEmpty() || topPrefixSuggestion.lowercase() == typed.lowercase() || isFuzzyBetter) {
                             val topFuzzyEditDist = dictionaryEngine.editDistance(typed.lowercase(), topFuzzy.lowercase())
                             val exactlyOneCorrection = topFuzzyEditDist == 1
                             val isAggressiveEnough = autocorrectAggressiveness > 0.7f
