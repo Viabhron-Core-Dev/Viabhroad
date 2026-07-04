@@ -367,15 +367,18 @@ class DictionaryEngine(private val context: Context) {
             if (Math.abs(word.length - lowerTyped.length) > maxEditDistance) continue
             val dist = editDistance(lowerTyped, word)
             if (dist in 1..maxEditDistance && dist > 0) {
-                candidates.add(Pair(word, freq))
+                // Exclude candidates that are significantly shorter than typed word
+                // Prevents "th" from being suggested for "teh"
+                if (word.length >= lowerTyped.length - 1) {
+                    candidates.add(Pair(word, freq))
+                }
             }
         }
         
         val results = candidates
             .sortedWith(compareBy(
-                { editDistance(lowerTyped, it.first) },  // edit distance first
-                { it.first.length },                      // shorter word wins on tie
-                { -it.second }                            // higher frequency wins after that
+                { editDistance(lowerTyped, it.first) },
+                { -it.second }
             ))
             .take(limit)
             .map { it.first }
