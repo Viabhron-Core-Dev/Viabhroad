@@ -372,7 +372,11 @@ class DictionaryEngine(private val context: Context) {
         }
         
         val results = candidates
-            .sortedWith(compareBy({ editDistance(lowerTyped, it.first) }, { -it.second }))
+            .sortedWith(compareBy(
+                { editDistance(lowerTyped, it.first) },  // edit distance first
+                { it.first.length },                      // shorter word wins on tie
+                { -it.second }                            // higher frequency wins after that
+            ))
             .take(limit)
             .map { it.first }
             
