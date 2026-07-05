@@ -57,6 +57,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
     private var currentWord = StringBuilder()
     private var previousWord: String? = null
     private var prevPrevWord: String? = null
+    private var suggestionGeneration: Int = 0
     private var currentSuggestions = emptyList<String>()
     
     private var isCurrentSuggestionsFuzzy = false
@@ -871,11 +872,54 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         logKeeper.log("INFO", "ViaboardService", "Service Destroyed")
     }
     
+    private sealed class AutocorrectDecision {
+        object None : AutocorrectDecision()
+        data class Correct(val word: String, val editDistance: Int, val source: String) : AutocorrectDecision()
+        data class Suggest(val words: List<String>, val source: String) : AutocorrectDecision()
+    }
+
+    private fun decideAutocorrect(typed: String, aggressiveness: Float): AutocorrectDecision {
+        if (typed.isEmpty()) return AutocorrectDecision.None
+        if (dictionaryEngine.wordExists(typed.lowercase())) return AutocorrectDecision.None
+
+        val isProperNoun = typed[0].isUpperCase()
+        val isIncognito = isIncognitoActive()
+
+        // Try prefix suggestion first
+        val topPrefix = currentSuggestions.getOrNull(0)
+        if (topPrefix != null && topPrefix.lowercase() != typed.lowercase()) {
+            val dist = dictionaryEngine.editDistance(typed.lowercase(), topPrefix.lowercase())
+            if (dist == 1 && !isProperNoun && aggressiveness > 0.7f) {
+                return AutocorrectDecision.Correct(topPrefix, dist, "prefix")
+            }
+            if (dist in 1..2) {
+                return AutocorrectDecision.Suggest(listOf(topPrefix), "prefix")
+            }
+        }
+
+        // Fall back to fuzzy
+        val fuzzy = dictionaryEngine.getFuzzyCorrections(typed, limit = 3, isIncognito = isIncognito)
+        if (fuzzy.isNotEmpty()) {
+            val top = fuzzy[0]
+            val dist = dictionaryEngine.editDistance(typed.lowercase(), top.lowercase())
+            if (dist == 1 && !isProperNoun && aggressiveness > 0.7f) {
+                return AutocorrectDecision.Correct(top, dist, "fuzzy")
+            }
+            return AutocorrectDecision.Suggest(fuzzy, "fuzzy")
+        }
+
+        return AutocorrectDecision.None
+    }
+
     private fun updateSuggestions() {
         if (!dictionaryEngine.isReady) return
 
-        val prefix = currentWord.toString()
+        suggestionGeneration++
+        val myGeneration = suggestionGeneration
         suggestionJob?.cancel()
+
+        val prefix = currentWord.toString()
+        val typedLower = prefix.lowercase()
         
         var showPaste = false
         val clip = clipboardManager?.primaryClip
@@ -904,62 +948,44 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
             suggestionPasteDivider?.visibility = View.GONE
         }
         
-        if (prefix.isBlank()) {
-            suggestionJob = coroutineScope.launch {
-                val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 2)
-                currentSuggestions = list
-                isCurrentSuggestionsFuzzy = false
-                
-                tvSuggestion1?.visibility = View.GONE
-                
-                tvSuggestion2?.text = list.getOrNull(0) ?: ""
-                tvSuggestion2?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
-                tvSuggestion2?.setTextColor(android.graphics.Color.WHITE)
-                
-                tvSuggestion3?.text = list.getOrNull(1) ?: ""
-                tvSuggestion3?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
-                tvSuggestion3?.setTextColor(android.graphics.Color.WHITE)
-            }
-            if (showPaste) {
-                suggestionPasteDivider?.visibility = View.GONE
-            }
-            return
-        }
-
         suggestionJob = coroutineScope.launch {
             val list = dictionaryEngine.getSuggestions(prefix, previousWord, prevPrevWord, 2)
+
+            // Staleness guard — if a newer keystroke has already started, discard this result
+            if (myGeneration != suggestionGeneration) return@launch
+
             currentSuggestions = list
             isCurrentSuggestionsFuzzy = false
-            
-            val typedLower = currentWord.toString().lowercase()
+
             val filteredSuggestions = list.filter { it.lowercase() != typedLower }
-            
-            tvSuggestion1?.text = prefix
-            tvSuggestion1?.visibility = View.VISIBLE
-            tvSuggestion1?.setTextColor(android.graphics.Color.parseColor("#AAAAAA"))
-            
+
+            if (prefix.isBlank()) {
+                tvSuggestion1?.visibility = View.GONE
+                suggestionDivider1?.visibility = View.GONE
+                suggestionDivider2?.visibility = View.GONE
+                if (showPaste) suggestionPasteDivider?.visibility = View.GONE
+            } else {
+                tvSuggestion1?.text = prefix
+                tvSuggestion1?.visibility = View.VISIBLE
+                tvSuggestion1?.setTextColor(android.graphics.Color.parseColor("#AAAAAA"))
+                suggestionDivider1?.visibility = if (filteredSuggestions.isNotEmpty()) View.VISIBLE else View.GONE
+                suggestionDivider2?.visibility = if (filteredSuggestions.size > 1) View.VISIBLE else View.GONE
+                if (showPaste) suggestionPasteDivider?.visibility = View.VISIBLE
+            }
+
             tvSuggestion2?.text = filteredSuggestions.getOrNull(0) ?: ""
             tvSuggestion2?.visibility = if (filteredSuggestions.isNotEmpty()) View.VISIBLE else View.GONE
             tvSuggestion2?.setTextColor(android.graphics.Color.WHITE)
-            
+
             tvSuggestion3?.text = filteredSuggestions.getOrNull(1) ?: ""
             tvSuggestion3?.visibility = if (filteredSuggestions.size > 1) View.VISIBLE else View.GONE
             tvSuggestion3?.setTextColor(android.graphics.Color.WHITE)
-            
-            suggestionDivider1?.visibility = if (filteredSuggestions.isNotEmpty()) View.VISIBLE else View.GONE
-            suggestionDivider2?.visibility = if (filteredSuggestions.size > 1) View.VISIBLE else View.GONE
-            
-            if (showPaste) {
-                suggestionPasteDivider?.visibility = View.VISIBLE
-            }
-            
+
             if (!isIncognitoActive()) {
-                if (list.isNotEmpty()) {
-                    val s2 = list.getOrNull(0) ?: ""
-                    val s3 = list.getOrNull(1) ?: ""
-                    logKeeper.log("INFO", "ViaboardService", "SUGGESTION_SHOWN | typed=$prefix | slot1=$prefix | slot2=$s2 | slot3=$s3 | prefix_length=${prefix.length}")
-                } else {
+                if (filteredSuggestions.isEmpty() && list.isEmpty()) {
                     logKeeper.log("INFO", "ViaboardService", "NO_SUGGESTION | typed=$prefix | prefix_length=${prefix.length}")
+                } else {
+                    logKeeper.log("INFO", "ViaboardService", "SUGGESTION_SHOWN | typed=$prefix | slot1=$prefix | slot2=${filteredSuggestions.getOrNull(0) ?: ""} | slot3=${filteredSuggestions.getOrNull(1) ?: ""} | prefix_length=${prefix.length}")
                 }
             }
         }
@@ -1084,131 +1110,49 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
 
                 val prefs = getSharedPreferences("keyboard_prefs", android.content.Context.MODE_PRIVATE)
                 val autocorrectAggressiveness = prefs.getFloat("autocorrect_aggressiveness", 1.0f)
-                val isAutocorrectEnabledNow = autocorrectAggressiveness > 0.2f
+                val isIncognito = isIncognitoActive()
 
-                if (isAutocorrectEnabledNow && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].lowercase() != currentWord.toString().lowercase()) {
-                    val topWordText = currentSuggestions[0]
-                    val isCapitalized = currentWord[0].isUpperCase()
-                    
-                    var shouldAutocorrect = false
-                    val typedStr = currentWord.toString().lowercase()
-                    val topStr = topWordText.lowercase()
-                    
-                    var blockReason = ""
-                    
-                    // Confidence threshold
-                    if (!dictionaryEngine.wordExists(typedStr)) {
-                        if (kotlin.math.abs(topStr.length - typedStr.length) <= 1) {
-                            var diffCount = 0
-                            var i = 0
-                            var j = 0
-                            while (i < topStr.length && j < typedStr.length) {
-                                if (topStr[i] != typedStr[j]) {
-                                    diffCount++
-                                    if (topStr.length > typedStr.length) i++
-                                    else if (typedStr.length > topStr.length) j++
-                                    else { i++; j++ }
-                                } else {
-                                    i++; j++
-                                }
-                            }
-                            diffCount += (topStr.length - i) + (typedStr.length - j)
-                            if (diffCount == 1) {
-                                shouldAutocorrect = true
-                            } else {
-                                blockReason = "edit_distance_too_large"
-                            }
-                        } else {
-                            blockReason = "edit_distance_too_large"
+                if (autocorrectAggressiveness > 0.2f && currentWord.isNotEmpty()) {
+                    val originalTyped = currentWord.toString()
+                    when (val decision = decideAutocorrect(originalTyped, autocorrectAggressiveness)) {
+                        is AutocorrectDecision.Correct -> {
+                            val corrected = if (originalTyped[0].isUpperCase()) {
+                                decision.word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+                            } else decision.word
+                            inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
+                            inputConnection.commitText(corrected + " ", 1)
+                            if (!isIncognito) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_FIRED | typed=$originalTyped | corrected_to=$corrected | edit_distance=${decision.editDistance} | source=${decision.source}")
+                            commitWord(decision.word)
+                            lastSpaceTime = now
+                            wordLengthBeforeCursor = 0
+                            wordLengthAfterCursor = 0
+                            updateShiftState()
+                            didAutocorrect = true
+                            lastAutocorrectedWord = originalTyped
+                            return
                         }
-                    } else {
-                        blockReason = "word_exists"
-                    }
-                    
-                    if (shouldAutocorrect) {
-                        val topWord = if (isCapitalized) {
-                            topWordText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
-                        } else {
-                            topWordText
-                        }
-                        inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
-                        inputConnection.commitText(topWord + " ", 1)
-                        if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_FIRED | typed=$originalTyped | corrected_to=$topWord | edit_distance=1")
-                        commitWord(topWordText)
-                        lastSpaceTime = now
-                        wordLengthBeforeCursor = 0
-                        wordLengthAfterCursor = 0
-                        updateShiftState()
-                        didAutocorrect = true
-                        lastAutocorrectedWord = originalTyped
-                        return
-                    } else if (blockReason.isNotEmpty() && !isIncognitoActive()) {
-                        logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_BLOCKED | typed=$originalTyped | top_suggestion=$topWordText | reason=$blockReason")
-                    }
-                }
-                
-                // Fuzzy correction fallback
-                val typed = currentWord.toString()
-                val topPrefixSuggestion = currentSuggestions.getOrNull(0) ?: ""
-                val prefixResultIsWeakMatch = topPrefixSuggestion.length > typed.length + 2
-                val shouldRunFuzzy = currentSuggestions.isEmpty() ||
-                    topPrefixSuggestion.lowercase() == typed.lowercase() ||
-                    prefixResultIsWeakMatch
-                
-                if (shouldRunFuzzy && typed.length >= 3 && !dictionaryEngine.wordExists(typed)) {
-                    val isIncognito = isIncognitoActive()
-                    val fuzzySuggestions = dictionaryEngine.getFuzzyCorrections(typed, limit = 3, isIncognito = isIncognito)
-                    if (fuzzySuggestions.isNotEmpty()) {
-                        val topFuzzy = fuzzySuggestions[0]
-                        val editDist = dictionaryEngine.editDistance(typed.lowercase(), topFuzzy.lowercase())
-                        
-                        val isFuzzyBetter = editDist == 1 && topFuzzy.length <= typed.length + 1
-                        if (currentSuggestions.isEmpty() || topPrefixSuggestion.lowercase() == typed.lowercase() || isFuzzyBetter) {
-                            val topFuzzyEditDist = dictionaryEngine.editDistance(typed.lowercase(), topFuzzy.lowercase())
-                            val exactlyOneCorrection = topFuzzyEditDist == 1
-                            val isAggressiveEnough = autocorrectAggressiveness > 0.7f
-                            val isProperNoun = typed.isNotEmpty() && typed[0].isUpperCase()
+                        is AutocorrectDecision.Suggest -> {
+                            suggestionGeneration++
+                            suggestionJob?.cancel()
+                            currentSuggestions = decision.words
+                            isCurrentSuggestionsFuzzy = decision.source == "fuzzy"
+                            tvSuggestion1?.visibility = View.GONE
+                            tvSuggestion2?.text = decision.words.getOrNull(0) ?: ""
+                            tvSuggestion2?.visibility = View.VISIBLE
+                            tvSuggestion3?.text = decision.words.getOrNull(1) ?: ""
+                            tvSuggestion3?.visibility = if (decision.words.size > 1) View.VISIBLE else View.GONE
+                            if (!isIncognito) logKeeper.log("INFO", "ViaboardService", "FUZZY_CORRECTION_SHOWN | typed=$originalTyped | suggestion=${decision.words[0]} | source=${decision.source}")
                             
-                            if (isAutocorrectEnabledNow && exactlyOneCorrection && isAggressiveEnough && !isProperNoun) {
-                                // Auto-correct
-                                val finalTopFuzzy = topFuzzy
-                                inputConnection.deleteSurroundingText(wordLengthBeforeCursor, wordLengthAfterCursor)
-                                inputConnection.commitText(finalTopFuzzy + " ", 1)
-                                if (!isIncognito) logKeeper.log("INFO", "ViaboardService", "FUZZY_AUTOCORRECT | typed=$typed | corrected_to=$finalTopFuzzy | aggressiveness=$autocorrectAggressiveness")
-                                commitWord(topFuzzy)
-                                lastSpaceTime = now
-                                wordLengthBeforeCursor = 0
-                                wordLengthAfterCursor = 0
-                                updateShiftState()
-                                didAutocorrect = true
-                                lastAutocorrectedWord = typed
-                                return
-                            } else {
-                                // Update suggestion slots with fuzzy results
-                                currentSuggestions = fuzzySuggestions
-                                isCurrentSuggestionsFuzzy = true
-                                suggestionJob?.cancel()
-                                
-                                tvSuggestion1?.visibility = View.GONE
-                                tvSuggestion2?.text = fuzzySuggestions.getOrNull(0) ?: ""
-                                tvSuggestion2?.visibility = View.VISIBLE
-                                tvSuggestion3?.text = fuzzySuggestions.getOrNull(1) ?: ""
-                                tvSuggestion3?.visibility = if (fuzzySuggestions.size > 1) View.VISIBLE else View.GONE
-                                
-                                if (!isIncognito) {
-                                    logKeeper.log("INFO", "ViaboardService", "FUZZY_CORRECTION_SHOWN | typed=$typed | suggestion=$topFuzzy | edit_distance=$editDist")
-                                }
-                                
-                                // Do NOT auto-correct — show in bar, let user tap
-                                inputConnection.commitText(" ", 1)
-                                wordLengthBeforeCursor += 1
-                                isShowingFuzzyAfterSpace = true
-                                
-                                lastSpaceTime = now
-                                updateShiftState()
-                                lastAutocorrectedWord = ""
-                                return
-                            }
+                            inputConnection.commitText(" ", 1)
+                            wordLengthBeforeCursor += 1
+                            isShowingFuzzyAfterSpace = true
+                            lastSpaceTime = now
+                            updateShiftState()
+                            lastAutocorrectedWord = ""
+                            return
+                        }
+                        AutocorrectDecision.None -> {
+                            if (!isIncognito) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_BLOCKED | typed=$originalTyped | reason=no_confident_correction")
                         }
                     }
                 }
