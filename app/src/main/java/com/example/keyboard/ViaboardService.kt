@@ -619,7 +619,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
 
         // Refresh settings
         val prefs = getSharedPreferences("keyboard_prefs", android.content.Context.MODE_PRIVATE)
-        val autocorrectAggressiveness = prefs.getFloat("autocorrect_aggressiveness", 0.5f)
+        val autocorrectAggressiveness = prefs.getFloat("autocorrect_aggressiveness", 1.0f)
         isAutocorrectEnabled = autocorrectAggressiveness > 0.2f
 
         // Refresh Toolbar configuration to catch Settings changes
@@ -931,20 +931,23 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
             currentSuggestions = list
             isCurrentSuggestionsFuzzy = false
             
+            val typedLower = currentWord.toString().lowercase()
+            val filteredSuggestions = list.filter { it.lowercase() != typedLower }
+            
             tvSuggestion1?.text = prefix
             tvSuggestion1?.visibility = View.VISIBLE
             tvSuggestion1?.setTextColor(android.graphics.Color.parseColor("#AAAAAA"))
             
-            tvSuggestion2?.text = list.getOrNull(0) ?: ""
-            tvSuggestion2?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
+            tvSuggestion2?.text = filteredSuggestions.getOrNull(0) ?: ""
+            tvSuggestion2?.visibility = if (filteredSuggestions.isNotEmpty()) View.VISIBLE else View.GONE
             tvSuggestion2?.setTextColor(android.graphics.Color.WHITE)
             
-            tvSuggestion3?.text = list.getOrNull(1) ?: ""
-            tvSuggestion3?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
+            tvSuggestion3?.text = filteredSuggestions.getOrNull(1) ?: ""
+            tvSuggestion3?.visibility = if (filteredSuggestions.size > 1) View.VISIBLE else View.GONE
             tvSuggestion3?.setTextColor(android.graphics.Color.WHITE)
             
-            suggestionDivider1?.visibility = if (list.isNotEmpty()) View.VISIBLE else View.GONE
-            suggestionDivider2?.visibility = if (list.size > 1) View.VISIBLE else View.GONE
+            suggestionDivider1?.visibility = if (filteredSuggestions.isNotEmpty()) View.VISIBLE else View.GONE
+            suggestionDivider2?.visibility = if (filteredSuggestions.size > 1) View.VISIBLE else View.GONE
             
             if (showPaste) {
                 suggestionPasteDivider?.visibility = View.VISIBLE
@@ -1080,7 +1083,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                 }
 
                 val prefs = getSharedPreferences("keyboard_prefs", android.content.Context.MODE_PRIVATE)
-                val autocorrectAggressiveness = prefs.getFloat("autocorrect_aggressiveness", 0.5f)
+                val autocorrectAggressiveness = prefs.getFloat("autocorrect_aggressiveness", 1.0f)
                 val isAutocorrectEnabledNow = autocorrectAggressiveness > 0.2f
 
                 if (isAutocorrectEnabledNow && currentSuggestions.isNotEmpty() && currentWord.isNotEmpty() && currentSuggestions[0].lowercase() != currentWord.toString().lowercase()) {

@@ -24,7 +24,7 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("keyboard_prefs", Context.MODE_PRIVATE)
     
-    var autoCorrectAggressiveness by remember { mutableStateOf(prefs.getFloat("autocorrect_aggressiveness", 0.5f)) }
+    var autoCorrectAggressiveness by remember { mutableStateOf(prefs.getFloat("autocorrect_aggressiveness", 1.0f)) }
     var useTransformerEngine by remember { mutableStateOf(prefs.getBoolean("use_transformer", false)) }
     
     val scope = rememberCoroutineScope()
