@@ -108,7 +108,10 @@ class DictionaryEngine(private val context: Context) {
                         if (cleanLine.isBlank() || cleanLine.startsWith("#")) continue
                         
                         val parts = cleanLine.split("\\s+".toRegex())
-                        val word = parts[0]
+                        val rawWord = parts[0]
+                        val word = rawWord.trim { it.isLetter().not() && it != '\'' }
+                        if (word.isBlank()) continue
+                        
                         val freq = if (parts.size > 1) {
                             parts[1].toIntOrNull() ?: maxFreq
                         } else {
