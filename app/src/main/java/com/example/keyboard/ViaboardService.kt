@@ -74,6 +74,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
     private var toolbarContainer: android.view.View? = null
     
     private var lastAutocorrectedWord: String = ""
+    private var lastCorrectedWord: String = ""
     private var didAutocorrect: Boolean = false
     
     private var tvSuggestionPasteText: android.widget.TextView? = null
@@ -911,6 +912,20 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         return AutocorrectDecision.None
     }
 
+    private fun performAutocorrectUndo(inputConnection: android.view.inputmethod.InputConnection) {
+        val deleteCount = lastCorrectedWord.length + 1
+        inputConnection.deleteSurroundingText(deleteCount, 0)
+        inputConnection.commitText(lastAutocorrectedWord, 1)
+        if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_UNDONE | original=$lastAutocorrectedWord | was_corrected_to=$lastCorrectedWord")
+        currentWord.clear()
+        currentWord.append(lastAutocorrectedWord)
+        wordLengthBeforeCursor = lastAutocorrectedWord.length
+        didAutocorrect = false
+        lastAutocorrectedWord = ""
+        lastCorrectedWord = ""
+        updateSuggestions()
+    }
+
     private fun updateSuggestions() {
         if (!dictionaryEngine.isReady) return
 
@@ -1057,22 +1072,13 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         if (key != "DEL" && key != "DSK_BKSP" && key != "SPACE") {
             didAutocorrect = false
             lastAutocorrectedWord = ""
+            lastCorrectedWord = ""
         }
         
         when (key) {
             "DEL" -> {
                 if (didAutocorrect && lastAutocorrectedWord.isNotEmpty()) {
-                    val correctedWord = currentSuggestions.getOrNull(0) ?: ""
-                    val deleteCount = correctedWord.length + 1
-                    inputConnection.deleteSurroundingText(deleteCount, 0)
-                    inputConnection.commitText(lastAutocorrectedWord, 1)
-                    if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_UNDONE | original=$lastAutocorrectedWord | was_corrected_to=$correctedWord")
-                    currentWord.clear()
-                    currentWord.append(lastAutocorrectedWord)
-                    wordLengthBeforeCursor = lastAutocorrectedWord.length
-                    didAutocorrect = false
-                    lastAutocorrectedWord = ""
-                    updateSuggestions()
+                    performAutocorrectUndo(inputConnection)
                     return
                 }
                 
@@ -1129,6 +1135,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                             updateShiftState()
                             didAutocorrect = true
                             lastAutocorrectedWord = originalTyped
+                            lastCorrectedWord = corrected
                             return
                         }
                         is AutocorrectDecision.Suggest -> {
@@ -1149,6 +1156,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                             lastSpaceTime = now
                             updateShiftState()
                             lastAutocorrectedWord = ""
+                            lastCorrectedWord = ""
                             return
                         }
                         AutocorrectDecision.None -> {
@@ -1164,6 +1172,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
                 lastSpaceTime = now
                 updateShiftState()
                 lastAutocorrectedWord = ""
+                lastCorrectedWord = ""
             }
             "ENTER" -> handleEnterAction()
             "SHIFT" -> {
@@ -1225,17 +1234,7 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
             "DSK_F1" -> sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_F1)
             "DSK_BKSP" -> {
                 if (didAutocorrect && lastAutocorrectedWord.isNotEmpty()) {
-                    val correctedWord = currentSuggestions.getOrNull(0) ?: ""
-                    val deleteCount = correctedWord.length + 1
-                    inputConnection.deleteSurroundingText(deleteCount, 0)
-                    inputConnection.commitText(lastAutocorrectedWord, 1)
-                    if (!isIncognitoActive()) logKeeper.log("INFO", "ViaboardService", "AUTOCORRECT_UNDONE | original=$lastAutocorrectedWord | was_corrected_to=$correctedWord")
-                    currentWord.clear()
-                    currentWord.append(lastAutocorrectedWord)
-                    wordLengthBeforeCursor = lastAutocorrectedWord.length
-                    didAutocorrect = false
-                    lastAutocorrectedWord = ""
-                    updateSuggestions()
+                    performAutocorrectUndo(inputConnection)
                     return
                 }
                 sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
