@@ -54,13 +54,10 @@ class DictionaryEngine(private val context: Context) {
     }
     
     private fun loadDefaultDictionary() {
-        pendingLoads.set(1)
-        try {
-            val stream = context.resources.openRawResource(R.raw.en_wordlist)
-            loadCombinedDictionary(stream)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            checkIfReady()
+        pendingLoads.set(0)
+        isReady = true
+        scope.launch(Dispatchers.Main) {
+            onReadyCallback?.invoke()
         }
         loadImportedDictionaries()
     }
@@ -115,9 +112,25 @@ class DictionaryEngine(private val context: Context) {
             try {
                 val importsDir = java.io.File(context.filesDir, "imported_dicts")
                 if (importsDir.exists() && importsDir.isDirectory) {
-                    importsDir.listFiles()?.forEach { file ->
-                        if (file.extension == "txt" && file.isFile) {
-                            loadTextDictionary(file.inputStream())
+                    val files = importsDir.listFiles()?.filter { it.isFile }
+                    if (files != null && files.isNotEmpty()) {
+                        pendingLoads.addAndGet(files.size)
+                        isReady = false
+                        for (file in files) {
+                            try {
+                                val firstLine = file.useLines { lines ->
+                                    lines.firstOrNull { it.isNotBlank() }
+                                }?.trim() ?: ""
+                                
+                                if (firstLine.startsWith("dictionary=")) {
+                                    loadCombinedDictionary(file.inputStream())
+                                } else {
+                                    loadTextDictionary(file.inputStream())
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                checkIfReady()
+                            }
                         }
                     }
                 }
