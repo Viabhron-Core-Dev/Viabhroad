@@ -64,6 +64,9 @@ class DictionaryEngine(private val context: Context) {
 
     fun loadCombinedDictionary(inputStream: InputStream) {
         scope.launch {
+            val startTime = System.currentTimeMillis()
+            var wordsInserted = 0
+            var bigramsInserted = 0
             try {
                 var currentWord: String? = null
                 inputStream.bufferedReader().useLines { lines ->
@@ -78,6 +81,7 @@ class DictionaryEngine(private val context: Context) {
                             val freq = parts.getOrNull(1)?.removePrefix("f=")?.trim()?.toIntOrNull() ?: 1
                             currentWord = word
                             insertWord(word, freq)
+                            wordsInserted++
                         } else if (trimmedLine.startsWith("bigram=")) {
                             val cw = currentWord ?: continue
                             val bParts = trimmedLine.removePrefix("bigram=").split(",")
@@ -86,14 +90,18 @@ class DictionaryEngine(private val context: Context) {
                             val bFreq = bParts.getOrNull(1)?.removePrefix("f=")?.trim()?.toIntOrNull() ?: 1
                             val map = bigrams.getOrPut(cw) { mutableMapOf() }
                             map[nextWord] = bFreq
+                            bigramsInserted++
                         }
                     }
                 }
             } catch (e: Exception) {
+                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_ERROR | file=[unknown] | exception=[${e.javaClass.simpleName}] | message=[${e.message}]")
                 e.printStackTrace()
             } finally {
+                val timeMs = System.currentTimeMillis() - startTime
                 checkIfReady()
                 android.util.Log.d("DictionaryEngine", "Combined dictionary loaded. bigrams.size=${bigrams.size}")
+                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_COMBINED_COMPLETE | words_inserted=[${wordsInserted}] | bigrams_inserted=[${bigramsInserted}] | time_ms=[${timeMs}]")
             }
         }
     }
@@ -111,9 +119,16 @@ class DictionaryEngine(private val context: Context) {
         scope.launch {
             try {
                 val importsDir = java.io.File(context.filesDir, "imported_dicts")
-                if (importsDir.exists() && importsDir.isDirectory) {
+                val dirExists = importsDir.exists()
+                val isDir = importsDir.isDirectory
+                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_SCAN_START | dir_exists=[${dirExists}] | is_directory=[${isDir}]")
+                
+                if (dirExists && isDir) {
                     val files = importsDir.listFiles()?.filter { it.isFile }
                     if (files != null && files.isNotEmpty()) {
+                        val names = files.joinToString(",") { it.name }
+                        TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_FILES_FOUND | count=[${files.size}] | names=[${names}]")
+                        
                         pendingLoads.addAndGet(files.size)
                         isReady = false
                         for (file in files) {
@@ -122,19 +137,29 @@ class DictionaryEngine(private val context: Context) {
                                     lines.firstOrNull { it.isNotBlank() }
                                 }?.trim() ?: ""
                                 
+                                val truncatedFirstLine = if (firstLine.length > 80) firstLine.take(80) else firstLine
+                                val routedTo = if (firstLine.startsWith("dictionary=")) "combined" else "text"
+                                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_FILE_START | name=[${file.name}] | size_bytes=[${file.length()}] | first_line=[${truncatedFirstLine}] | routed_to=[${routedTo}]")
+                                
                                 if (firstLine.startsWith("dictionary=")) {
                                     loadCombinedDictionary(file.inputStream())
                                 } else {
                                     loadTextDictionary(file.inputStream())
                                 }
                             } catch (e: Exception) {
+                                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_ERROR | file=[${file.name}] | exception=[${e.javaClass.simpleName}] | message=[${e.message}]")
                                 e.printStackTrace()
                                 checkIfReady()
                             }
                         }
+                    } else {
+                        TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_NO_FILES_FOUND")
                     }
+                } else {
+                    TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_NO_FILES_FOUND")
                 }
             } catch (e: Exception) {
+                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_ERROR | file=[unknown] | exception=[${e.javaClass.simpleName}] | message=[${e.message}]")
                 e.printStackTrace()
             }
         }
