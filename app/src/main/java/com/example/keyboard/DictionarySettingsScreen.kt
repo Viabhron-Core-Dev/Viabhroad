@@ -91,6 +91,19 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
                         
                         TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_DIR_STATUS | path=[${importsDir.absolutePath}] | exists=[${importsDir.exists()}] | is_directory=[${importsDir.isDirectory}]")
                         
+                        val identifierLine = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { reader ->
+                            reader.readLine()
+                        }?.trim() ?: ""
+
+                        val existingFiles = importsDir.listFiles() ?: emptyArray()
+                        for (existingFile in existingFiles) {
+                            val existingFirstLine = existingFile.bufferedReader().use { reader -> reader.readLine() }?.trim() ?: ""
+                            if (existingFirstLine.isNotEmpty() && existingFirstLine == identifierLine) {
+                                existingFile.delete()
+                                TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_DUPLICATE_REMOVED | old_file=[${existingFile.name}]")
+                            }
+                        }
+
                         // We extract the file name or generate a unique one
                         val fileName = "imported_${System.currentTimeMillis()}.txt"
                         val destinationFile = File(importsDir, fileName)
