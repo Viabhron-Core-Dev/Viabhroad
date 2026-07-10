@@ -93,9 +93,14 @@ class DictionaryEngine(private val context: Context) {
             if (cacheFile.exists()) cacheFile.delete()
             tempFile.renameTo(cacheFile)
             android.util.Log.d("DictionaryEngine", "Cache written successfully. size=${cacheFile.length()} bytes, source=$sourceFileName")
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
-            tempFile.delete()
+            android.util.Log.w("DictionaryEngine", "Cache write skipped (not fatal): ${e.javaClass.simpleName}: ${e.message}")
+            try {
+                tempFile.delete()
+            } catch (inner: Throwable) {
+                // Best effort cleanup only, never let this throw further
+            }
         }
     }
 
