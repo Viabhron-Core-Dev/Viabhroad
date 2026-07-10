@@ -49,6 +49,56 @@ class DictionaryEngine(private val context: Context) {
         var frequency = 0
     }
 
+    companion object {
+        private const val CACHE_FORMAT_VERSION = 1
+    }
+
+    private fun getCacheFile(): java.io.File {
+        val cacheDir = java.io.File(context.filesDir, "dict_cache")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        return java.io.File(cacheDir, "trie_cache.bin")
+    }
+
+    private fun writeTrieNode(out: java.io.DataOutputStream, node: TrieNode) {
+        out.writeBoolean(node.isWord)
+        out.writeInt(node.frequency)
+        out.writeInt(node.children.size)
+        for ((char, child) in node.children) {
+            out.writeChar(char.code)
+            writeTrieNode(out, child)
+        }
+    }
+
+    private fun saveCacheToDisk(sourceFileName: String, sourceFileSize: Long) {
+        val cacheFile = getCacheFile()
+        val tempFile = java.io.File(cacheFile.parentFile, "trie_cache.bin.tmp")
+        try {
+            java.io.DataOutputStream(java.io.BufferedOutputStream(tempFile.outputStream())).use { out ->
+                out.writeInt(CACHE_FORMAT_VERSION)
+                out.writeUTF(sourceFileName)
+                out.writeLong(sourceFileSize)
+
+                writeTrieNode(out, trie)
+
+                out.writeInt(bigrams.size)
+                for ((word, nextMap) in bigrams) {
+                    out.writeUTF(word)
+                    out.writeInt(nextMap.size)
+                    for ((nextWord, freq) in nextMap) {
+                        out.writeUTF(nextWord)
+                        out.writeInt(freq)
+                    }
+                }
+            }
+            if (cacheFile.exists()) cacheFile.delete()
+            tempFile.renameTo(cacheFile)
+            android.util.Log.d("DictionaryEngine", "Cache written successfully. size=${cacheFile.length()} bytes, source=$sourceFileName")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            tempFile.delete()
+        }
+    }
+
     init {
         loadDefaultDictionary()
     }
@@ -62,7 +112,7 @@ class DictionaryEngine(private val context: Context) {
         loadImportedDictionaries()
     }
 
-    fun loadCombinedDictionary(inputStream: InputStream) {
+    fun loadCombinedDictionary(inputStream: InputStream, sourceFileName: String, sourceFileSize: Long) {
         scope.launch {
             val startTime = System.currentTimeMillis()
             var wordsInserted = 0
@@ -94,6 +144,7 @@ class DictionaryEngine(private val context: Context) {
                         }
                     }
                 }
+                saveCacheToDisk(sourceFileName, sourceFileSize)
             } catch (e: Exception) {
                 TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_ERROR | file=[unknown] | exception=[${e.javaClass.simpleName}] | message=[${e.message}]")
                 e.printStackTrace()
@@ -142,7 +193,7 @@ class DictionaryEngine(private val context: Context) {
                                 TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_FILE_START | name=[${file.name}] | size_bytes=[${file.length()}] | first_line=[${truncatedFirstLine}] | routed_to=[${routedTo}]")
                                 
                                 if (firstLine.startsWith("dictionary=")) {
-                                    loadCombinedDictionary(file.inputStream())
+                                    loadCombinedDictionary(file.inputStream(), file.name, file.length())
                                 } else {
                                     loadTextDictionary(file.inputStream())
                                 }
