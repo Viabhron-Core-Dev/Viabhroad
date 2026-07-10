@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import java.io.File
+import com.example.logkeeper.TheLogKeeper
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -81,11 +82,14 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
+            TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_TRIGGERED | uri=[${it.toString()}]")
             scope.launch {
                 try {
                     withContext(Dispatchers.IO) {
                         val importsDir = File(context.filesDir, "imported_dicts")
                         if (!importsDir.exists()) importsDir.mkdirs()
+                        
+                        TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_DIR_STATUS | path=[${importsDir.absolutePath}] | exists=[${importsDir.exists()}] | is_directory=[${importsDir.isDirectory}]")
                         
                         // We extract the file name or generate a unique one
                         val fileName = "imported_${System.currentTimeMillis()}.txt"
@@ -96,9 +100,12 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
                                 input.copyTo(output)
                             }
                         }
+                        
+                        TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_WRITE_COMPLETE | destination=[${destinationFile.absolutePath}] | size_bytes=[${destinationFile.length()}]")
                     }
                     Toast.makeText(context, "Text dictionary imported. Reopen keyboard to apply!", Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
+                    TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_FAILED | exception=[${e.javaClass.simpleName}] | message=[${e.message}]")
                     Toast.makeText(context, "Failed to import dict: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
