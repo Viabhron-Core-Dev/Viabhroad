@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import java.io.File
@@ -25,6 +26,7 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("keyboard_prefs", Context.MODE_PRIVATE)
     
+    var isImportingDictionary by remember { mutableStateOf(false) }
     var autoCorrectAggressiveness by remember { mutableStateOf(prefs.getFloat("autocorrect_aggressiveness", 1.0f)) }
     var useTransformerEngine by remember { mutableStateOf(prefs.getBoolean("use_transformer", false)) }
     
@@ -116,7 +118,15 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
                         
                         TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_WRITE_COMPLETE | destination=[${destinationFile.absolutePath}] | size_bytes=[${destinationFile.length()}]")
                     }
-                    Toast.makeText(context, "Text dictionary imported. Reopen keyboard to apply!", Toast.LENGTH_LONG).show()
+                    withContext(Dispatchers.Main) {
+                        isImportingDictionary = true
+                    }
+                    
+                    val importEngine = DictionaryEngine(context)
+                    importEngine.onReadyCallback = {
+                        isImportingDictionary = false
+                        Toast.makeText(context, "Dictionary imported successfully.", Toast.LENGTH_LONG).show()
+                    }
                 } catch (e: Exception) {
                     TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_FAILED | exception=[${e.javaClass.simpleName}] | message=[${e.message}]")
                     Toast.makeText(context, "Failed to import dict: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -130,19 +140,31 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
             TopAppBar(
                 title = { Text("Dictionary & Prediction") },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = { if (!isImportingDictionary) onClose() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
+        if (isImportingDictionary) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Importing dictionary, please wait...")
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp)
+            ) {
             Text("Auto-Correct Aggressiveness", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
             Slider(
@@ -259,4 +281,5 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
             }
         }
     }
+}
 }
