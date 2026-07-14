@@ -87,12 +87,15 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
             TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_TRIGGERED | uri=[${it.toString()}]")
             scope.launch {
                 try {
+                    withContext(Dispatchers.Main) {
+                        isImportingDictionary = true
+                    }
                     withContext(Dispatchers.IO) {
                         val importsDir = File(context.filesDir, "imported_dicts")
                         if (!importsDir.exists()) importsDir.mkdirs()
-                        
+
                         TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_DIR_STATUS | path=[${importsDir.absolutePath}] | exists=[${importsDir.exists()}] | is_directory=[${importsDir.isDirectory}]")
-                        
+
                         val identifierLine = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { reader ->
                             reader.readLine()
                         }?.trim() ?: ""
@@ -106,30 +109,28 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
                             }
                         }
 
-                        // We extract the file name or generate a unique one
                         val fileName = "imported_${System.currentTimeMillis()}.txt"
                         val destinationFile = File(importsDir, fileName)
-                        
+
                         context.contentResolver.openInputStream(it)?.use { input ->
                             destinationFile.outputStream().use { output ->
                                 input.copyTo(output)
                             }
                         }
-                        
+
                         TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_WRITE_COMPLETE | destination=[${destinationFile.absolutePath}] | size_bytes=[${destinationFile.length()}]")
+
+                        val importEngine = DictionaryEngine(context, autoLoad = false)
+                        importEngine.loadCombinedDictionary(destinationFile.inputStream(), destinationFile.name, destinationFile.length())
                     }
-                    withContext(Dispatchers.Main) {
-                        isImportingDictionary = true
-                    }
-                    
-                    val importEngine = DictionaryEngine(context)
-                    importEngine.onReadyCallback = {
-                        isImportingDictionary = false
-                        Toast.makeText(context, "Dictionary imported successfully.", Toast.LENGTH_LONG).show()
-                    }
+                    Toast.makeText(context, "Dictionary imported successfully.", Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
                     TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DICT_IMPORT_FAILED | exception=[${e.javaClass.simpleName}] | message=[${e.message}]")
                     Toast.makeText(context, "Failed to import dict: ${e.message}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    withContext(Dispatchers.Main) {
+                        isImportingDictionary = false
+                    }
                 }
             }
         }
