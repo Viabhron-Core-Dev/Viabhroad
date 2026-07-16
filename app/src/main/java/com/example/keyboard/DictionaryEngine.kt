@@ -127,6 +127,9 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
                 val startTime = System.currentTimeMillis()
                 var wordsInserted = 0
                 var bigramsInserted = 0
+                val bigramWordCap = 3000
+                var wordsWithBigrams = 0
+                val wordsGrantedBigrams = mutableSetOf<String>()
                 try {
                     var currentWord: String? = null
                     inputStream.bufferedReader().useLines { lines ->
@@ -148,6 +151,13 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
                                 val nextWord = bParts.getOrNull(0)?.trim()
                                 if (nextWord.isNullOrBlank()) continue
                                 val bFreq = bParts.getOrNull(1)?.removePrefix("f=")?.trim()?.toIntOrNull() ?: 1
+
+                                if (!wordsGrantedBigrams.contains(cw)) {
+                                    if (wordsWithBigrams >= bigramWordCap) continue
+                                    wordsGrantedBigrams.add(cw)
+                                    wordsWithBigrams++
+                                }
+
                                 val map = bigrams.getOrPut(cw) { mutableMapOf() }
                                 map[nextWord] = bFreq
                                 bigramsInserted++
@@ -162,7 +172,7 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
                     val timeMs = System.currentTimeMillis() - startTime
                     checkIfReady()
                     android.util.Log.d("DictionaryEngine", "Combined dictionary loaded. bigrams.size=${bigrams.size}")
-                    TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_COMBINED_COMPLETE | words_inserted=[${wordsInserted}] | bigrams_inserted=[${bigramsInserted}] | time_ms=[${timeMs}]")
+                    TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "IMPORT_COMBINED_COMPLETE | words_inserted=[${wordsInserted}] | bigrams_inserted=[${bigramsInserted}] | bigram_words_capped=[${wordsWithBigrams}] | time_ms=[${timeMs}]")
                 }
             }
         }
