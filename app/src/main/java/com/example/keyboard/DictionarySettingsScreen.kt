@@ -27,6 +27,7 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
     val prefs = context.getSharedPreferences("keyboard_prefs", Context.MODE_PRIVATE)
     
     var isImportingDictionary by remember { mutableStateOf(false) }
+    var isMigratingDatabase by remember { mutableStateOf(false) }
     var autoCorrectAggressiveness by remember { mutableStateOf(prefs.getFloat("autocorrect_aggressiveness", 1.0f)) }
     var useTransformerEngine by remember { mutableStateOf(prefs.getBoolean("use_transformer", false)) }
     
@@ -141,14 +142,14 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
             TopAppBar(
                 title = { Text("Dictionary & Prediction") },
                 navigationIcon = {
-                    IconButton(onClick = { if (!isImportingDictionary) onClose() }) {
+                    IconButton(onClick = { if (!isImportingDictionary && !isMigratingDatabase) onClose() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
         }
     ) { paddingValues ->
-        if (isImportingDictionary) {
+        if (isImportingDictionary || isMigratingDatabase) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                 contentAlignment = Alignment.Center
@@ -156,7 +157,10 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Importing dictionary, please wait...")
+                    Text(
+                        if (isImportingDictionary) "Importing dictionary, please wait..."
+                        else "Building database, please wait..."
+                    )
                 }
             }
         } else {
@@ -224,6 +228,40 @@ fun DictionarySettingsScreen(onClose: () -> Unit, onOpenPersonalDictionary: () -
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Import Basic Text Dictionary (.txt)")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    scope.launch {
+                        val importsDir = File(context.filesDir, "imported_dicts")
+                        val existingFile = importsDir.listFiles()?.firstOrNull()
+                        if (existingFile == null) {
+                            Toast.makeText(context, "Import a dictionary first.", Toast.LENGTH_SHORT).show()
+                            return@launch
+                        }
+                        try {
+                            withContext(Dispatchers.Main) {
+                                isMigratingDatabase = true
+                            }
+                            withContext(Dispatchers.IO) {
+                                val migrationEngine = DictionaryEngine(context, autoLoad = false)
+                                migrationEngine.migrateWordsToDatabase(existingFile.inputStream())
+                            }
+                            Toast.makeText(context, "Database build complete.", Toast.LENGTH_LONG).show()
+                        } catch (e: Exception) {
+                            TheLogKeeper.getInstance(context).log("INFO", "DictionarySettingsScreen", "DB_MIGRATION_FAILED | exception=[${e.javaClass.simpleName}] | message=[${e.message}]")
+                            Toast.makeText(context, "Database build failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        } finally {
+                            withContext(Dispatchers.Main) {
+                                isMigratingDatabase = false
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Build Fast Lookup Database (Step 2)")
             }
             
             Spacer(modifier = Modifier.height(24.dp))
