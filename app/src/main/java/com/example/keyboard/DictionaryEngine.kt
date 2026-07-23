@@ -281,24 +281,31 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
 
     fun wordExists(word: String): Boolean {
         val lowerWord = word.lowercase()
-        // Check personal dictionary
+        
+        // 1. Check Trie (Hot cache)
+        var current: TrieNode? = trie
+        var foundInTrie = true
+        for (char in lowerWord) {
+            if (current == null || !current.children.containsKey(char)) {
+                foundInTrie = false
+                break
+            }
+            current = current.children[char]
+        }
+        if (foundInTrie && current?.isWord == true) return true
+
+        // 2. Fallback to DBs (Personal + Main)
         try {
             val exists = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-                personalDao.getByShortcut(lowerWord) != null
+                if (personalDao.getByShortcut(lowerWord) != null) return@runBlocking true
+                ClipboardDatabase.getDatabase(context).dictionaryWordDao().getExact(lowerWord) != null
             }
             if (exists) return true
         } catch (e: Exception) {
             e.printStackTrace()
         }
         
-        var current = trie
-        for (char in lowerWord) {
-            if (!current.children.containsKey(char)) {
-                return false
-            }
-            current = current.children[char]!!
-        }
-        return current.isWord
+        return false
     }
 
     fun addToPersonalDictionary(word: String) {
@@ -444,7 +451,24 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
         for (word in personalWords + engineWords) {
             if (seen.add(word)) {
                 results.add(word)
-                if (results.size >= limit) break
+                if (results.size >= limit) return results
+            }
+        }
+        
+        // 3. Fallback to main database if we still need more suggestions
+        if (results.size < limit) {
+            try {
+                val dbWords = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                    ClipboardDatabase.getDatabase(context).dictionaryWordDao().getSuggestions(lowerPrefix, limit)
+                }
+                for (dbWord in dbWords) {
+                    if (seen.add(dbWord.word)) {
+                        results.add(dbWord.word)
+                        if (results.size >= limit) break
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
         

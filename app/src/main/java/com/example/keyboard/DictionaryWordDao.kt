@@ -15,4 +15,7 @@ interface DictionaryWordDao {
 
     @Query("SELECT * FROM dictionary_words WHERE word = :word LIMIT 1")
     suspend fun getExact(word: String): DictionaryWordEntity?
+
+    @Query("SELECT * FROM dictionary_words WHERE word LIKE :prefix || \'%\' ORDER BY frequency DESC LIMIT :limit")
+    suspend fun getSuggestions(prefix: String, limit: Int): List<DictionaryWordEntity>
 }
