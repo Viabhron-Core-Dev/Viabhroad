@@ -13,6 +13,7 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
     private val trie = TrieNode()
     private val bigrams = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, Int>>()
     private val trigrams = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, Int>>()
+    private val allWordsSet = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     
     // Static fallback lists for proactive suggestions
     private val commonFallbackWords = listOf("I", "the", "and", "to", "you", "a", "is", "that", "it", "in")
@@ -148,6 +149,7 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
 
                                 currentWord = word
                                 wordsParsed++
+                                allWordsSet.add(word.lowercase())
 
                                 if (trieWordsInserted < MAX_IN_MEMORY_WORDS) {
                                     insertWord(word, freq)
@@ -294,18 +296,8 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
         }
         if (foundInTrie && current?.isWord == true) return true
 
-        // 2. Fallback to DBs (Personal + Main)
-        try {
-            val exists = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-                if (personalDao.getByShortcut(lowerWord) != null) return@runBlocking true
-                ClipboardDatabase.getDatabase(context).dictionaryWordDao().getExact(lowerWord) != null
-            }
-            if (exists) return true
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        
-        return false
+        // 2. Fallback to in-memory set (synchronous, instant)
+        return allWordsSet.contains(lowerWord)
     }
 
     fun addToPersonalDictionary(word: String) {
