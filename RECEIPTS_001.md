@@ -6,3 +6,11 @@
 * Verified: Local compilation succeeded (gradle clean assembleDebug).
 * Deviations: None.
 * Issues: None.
+
+2026-07-27T00:03:00
+* Request: Extend the dictionary cache to include `allWordsSet`, and confirm it saves automatically after import (Step 1 of 2).
+* Files touched: app/src/main/java/com/example/keyboard/DictionaryEngine.kt
+* Executed: Added `out.writeInt(allWordsSet.size)` and `out.writeUTF(word)` to the `saveCacheToDisk` function after the bigrams serialization. Confirmed `saveCacheToDisk` is being called correctly in `loadCombinedDictionary`. Retained the `try/catch(e: Throwable)` block.
+* Verified: Local compilation succeeded (gradle clean assembleDebug).
+* Deviations: None.
+* Issues: None.

@@ -92,6 +92,11 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
                         out.writeInt(freq)
                     }
                 }
+                
+                out.writeInt(allWordsSet.size)
+                for (word in allWordsSet) {
+                    out.writeUTF(word)
+                }
             }
             if (cacheFile.exists()) cacheFile.delete()
             tempFile.renameTo(cacheFile)
