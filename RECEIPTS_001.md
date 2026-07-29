@@ -14,3 +14,11 @@
 * Verified: Local compilation succeeded (gradle clean assembleDebug).
 * Deviations: None.
 * Issues: None.
+
+2026-07-29T01:36:00
+* Request: Read the dictionary cache back on startup instead of re-parsing raw text (Step 2 of 2).
+* Files touched: app/src/main/java/com/example/keyboard/DictionaryEngine.kt
+* Executed: Added `readTrieNode` to recursively load trie nodes. Added `loadCacheFromDisk` to load the trie, bigrams, and allWordsSet, checking format version and source file match before clearing and replacing the existing structures. Modified `loadImportedDictionaries` to call `loadCacheFromDisk` before `loadCombinedDictionary`, skipping the full parse and calling `checkIfReady()` directly if a valid cache is found.
+* Verified: Local compilation succeeded (gradle clean assembleDebug).
+* Deviations: None.
+* Issues: None.
