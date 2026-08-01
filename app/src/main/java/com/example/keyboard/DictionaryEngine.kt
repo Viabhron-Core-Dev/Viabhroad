@@ -100,10 +100,10 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
             }
             if (cacheFile.exists()) cacheFile.delete()
             tempFile.renameTo(cacheFile)
-            android.util.Log.d("DictionaryEngine", "Cache written successfully. size=${cacheFile.length()} bytes, source=$sourceFileName")
+            TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "Cache written successfully. size=${cacheFile.length()} bytes, source=$sourceFileName")
         } catch (e: Throwable) {
             e.printStackTrace()
-            android.util.Log.w("DictionaryEngine", "Cache write skipped (not fatal): ${e.javaClass.simpleName}: ${e.message}")
+            TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "Cache write skipped (not fatal): ${e.javaClass.simpleName}: ${e.message}")
             try {
                 tempFile.delete()
             } catch (inner: Throwable) {
@@ -132,17 +132,19 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
             java.io.DataInputStream(java.io.BufferedInputStream(cacheFile.inputStream())).use { input ->
                 val version = input.readInt()
                 if (version != CACHE_FORMAT_VERSION) {
-                    android.util.Log.d("DictionaryEngine", "CACHE_MISS | reason=version_mismatch")
+                    TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "CACHE_MISS | reason=version_mismatch")
                     return false
                 }
                 val savedName = input.readUTF()
                 val savedSize = input.readLong()
                 if (savedName != expectedSourceFileName || savedSize != expectedSourceFileSize) {
-                    android.util.Log.d("DictionaryEngine", "CACHE_MISS | reason=source_mismatch")
+                    TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "CACHE_MISS | reason=source_mismatch")
                     return false
                 }
 
                 val loadedTrie = readTrieNode(input)
+                val trieTime = System.currentTimeMillis() - startTime
+                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "CACHE_TIMING | stage=trie | elapsed_ms=$trieTime")
 
                 val loadedBigrams = mutableMapOf<String, MutableMap<String, Int>>()
                 val bigramCount = input.readInt()
@@ -155,12 +157,16 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
                     }
                     loadedBigrams[word] = map
                 }
+                val bigramsTime = System.currentTimeMillis() - startTime
+                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "CACHE_TIMING | stage=bigrams | elapsed_ms=$bigramsTime")
 
                 val loadedWords = mutableSetOf<String>()
                 val wordCount = input.readInt()
                 repeat(wordCount) {
                     loadedWords.add(input.readUTF())
                 }
+                val wordsTime = System.currentTimeMillis() - startTime
+                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "CACHE_TIMING | stage=words | elapsed_ms=$wordsTime")
 
                 // Only commit after everything above succeeded with no exception
                 trie.children.clear()
@@ -175,12 +181,12 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
                 allWordsSet.addAll(loadedWords)
 
                 val elapsed = System.currentTimeMillis() - startTime
-                android.util.Log.d("DictionaryEngine", "CACHE_HIT | words=${loadedWords.size} | bigram_entries=${loadedBigrams.size} | time_ms=$elapsed")
+                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "CACHE_HIT | words=${loadedWords.size} | bigram_entries=${loadedBigrams.size} | time_ms=$elapsed")
                 true
             }
         } catch (e: Throwable) {
             e.printStackTrace()
-            android.util.Log.w("DictionaryEngine", "CACHE_LOAD_FAILED | ${e.javaClass.simpleName}: ${e.message}")
+            TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "CACHE_LOAD_FAILED | ${e.javaClass.simpleName}: ${e.message}")
             false
         }
     }

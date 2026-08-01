@@ -22,3 +22,11 @@
 * Verified: Local compilation succeeded (gradle clean assembleDebug).
 * Deviations: None.
 * Issues: None.
+
+2026-07-31T10:46:00
+* Request: Fix cache logging visibility and add timing breakdown — Viaboard.
+* Files touched: app/src/main/java/com/example/keyboard/DictionaryEngine.kt
+* Executed: Replaced all `android.util.Log.d` and `android.util.Log.w` calls in `loadCacheFromDisk` and `saveCacheToDisk` with `TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", ...)`. Added timing measurements (`CACHE_TIMING | stage=trie`, `stage=bigrams`, `stage=words`) inside `loadCacheFromDisk` after reading each respective structure.
+* Verified: Local compilation succeeded (`compile_applet`).
+* Deviations: None.
+* Issues: None.
