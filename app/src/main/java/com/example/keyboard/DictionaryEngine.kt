@@ -635,7 +635,7 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
         
         val results = candidates
             .sortedWith(compareBy(
-                { editDistance(lowerTyped, it.first) },
+                { editDistance(lowerTyped, it.first).toDouble() / it.first.length },
                 { -it.second }
             ))
             .take(limit)

@@ -30,3 +30,11 @@
 * Verified: Local compilation succeeded (`compile_applet`).
 * Deviations: None.
 * Issues: None.
+
+2026-08-01T23:18:00
+* Request: Add length-normalized penalty to fuzzy correction ranking — Viaboard
+* Files touched: app/src/main/java/com/example/keyboard/DictionaryEngine.kt
+* Executed: Updated the `sortedWith(compareBy(...))` block in `getFuzzyCorrections` to normalize the edit distance by dividing it by the candidate word's length (`editDistance(lowerTyped, it.first).toDouble() / it.first.length`). The frequency tiebreaker was retained unchanged.
+* Verified: Local compilation in progress...
+* Deviations: None.
+* Issues: None.
