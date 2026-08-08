@@ -38,3 +38,11 @@
 * Verified: Local compilation in progress...
 * Deviations: None.
 * Issues: None.
+
+2026-08-04T14:55:00
+* Request: Add spatial key-proximity weighting as a secondary ranking factor — Viaboard
+* Files touched: app/src/main/java/com/example/keyboard/DictionaryEngine.kt
+* Executed: Added a `keyAdjacency` map and `spatialPenalty` function to `DictionaryEngine.kt`. Updated the `sortedWith(compareBy(...))` block in `getFuzzyCorrections` to use `{ spatialPenalty(lowerTyped, it.first) }` as the secondary sort key, immediately after length-normalized edit distance and before frequency. `editDistance` and candidate filtering logic remained completely untouched.
+* Verified: Local compilation succeeded.
+* Deviations: None.
+* Issues: None.

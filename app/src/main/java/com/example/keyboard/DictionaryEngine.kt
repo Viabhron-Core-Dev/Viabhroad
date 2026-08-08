@@ -586,6 +586,47 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
         return results.sortedByDescending { it.second }.map { it.first }
     }
     
+    private val keyAdjacency = mapOf(
+        'q' to setOf('w', 'a'),
+        'w' to setOf('q', 'e', 'a', 's'),
+        'e' to setOf('w', 'r', 's', 'd'),
+        'r' to setOf('e', 't', 'd', 'f'),
+        't' to setOf('r', 'y', 'f', 'g'),
+        'y' to setOf('t', 'u', 'g', 'h'),
+        'u' to setOf('y', 'i', 'h', 'j'),
+        'i' to setOf('u', 'o', 'j', 'k'),
+        'o' to setOf('i', 'p', 'k', 'l'),
+        'p' to setOf('o', 'l'),
+        'a' to setOf('q', 'w', 's', 'z'),
+        's' to setOf('a', 'w', 'e', 'd', 'z', 'x'),
+        'd' to setOf('s', 'e', 'r', 'f', 'x', 'c'),
+        'f' to setOf('d', 'r', 't', 'g', 'c', 'v'),
+        'g' to setOf('f', 't', 'y', 'h', 'v', 'b'),
+        'h' to setOf('g', 'y', 'u', 'j', 'b', 'n'),
+        'j' to setOf('h', 'u', 'i', 'k', 'n', 'm'),
+        'k' to setOf('j', 'i', 'o', 'l', 'm'),
+        'l' to setOf('k', 'o', 'p'),
+        'z' to setOf('a', 's', 'x'),
+        'x' to setOf('z', 's', 'd', 'c'),
+        'c' to setOf('x', 'd', 'f', 'v'),
+        'v' to setOf('c', 'f', 'g', 'b'),
+        'b' to setOf('v', 'g', 'h', 'n'),
+        'n' to setOf('b', 'h', 'j', 'm'),
+        'm' to setOf('n', 'j', 'k')
+    )
+
+    private fun spatialPenalty(typed: String, candidate: String): Double {
+        if (typed.length != candidate.length) return 0.0
+        var penalty = 0.0
+        for (i in typed.indices) {
+            if (typed[i] != candidate[i]) {
+                val isAdjacent = keyAdjacency[typed[i]]?.contains(candidate[i]) == true
+                penalty += if (isAdjacent) 0.2 else 1.0
+            }
+        }
+        return penalty
+    }
+
     fun getFuzzyCorrections(typed: String, limit: Int = 3, isIncognito: Boolean = false): List<String> {
         if (typed.length < 3) return emptyList() // too short to correct meaningfully
         
@@ -636,6 +677,7 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
         val results = candidates
             .sortedWith(compareBy(
                 { editDistance(lowerTyped, it.first).toDouble() / it.first.length },
+                { spatialPenalty(lowerTyped, it.first) },
                 { -it.second }
             ))
             .take(limit)
