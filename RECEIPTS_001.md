@@ -46,3 +46,11 @@
 * Verified: Local compilation succeeded.
 * Deviations: None.
 * Issues: None.
+
+2026-08-10T08:42:00
+* Request: Add log-probability scoring to fuzzy correction ranking — Viaboard
+* Files touched: app/src/main/java/com/example/keyboard/DictionaryEngine.kt
+* Executed: Replaced the 3-key `sortedWith` block in `getFuzzyCorrections` with a combined penalty score calculation: `(LengthNormalizedEditDistance + SpatialPenalty) - (alpha * ln(frequency))` where `alpha` = 0.05. Re-sorted based on `totalPenalty`, mapped safe frequency via `maxOf(1, freq)`, and added `TheLogKeeper` candidate diagnostic logging before truncating to the `limit`.
+* Verified: Local compilation succeeded.
+* Deviations: None.
+* Issues: None.

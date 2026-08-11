@@ -628,6 +628,7 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
     }
 
     fun getFuzzyCorrections(typed: String, limit: Int = 3, isIncognito: Boolean = false): List<String> {
+        val alpha = 0.05 // Controls how much frequency overrides raw edit distance
         if (typed.length < 3) return emptyList() // too short to correct meaningfully
         
         val lowerTyped = typed.lowercase()
@@ -674,14 +675,25 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
             }
         }
         
-        val results = candidates
-            .sortedWith(compareBy(
-                { editDistance(lowerTyped, it.first).toDouble() / it.first.length },
-                { spatialPenalty(lowerTyped, it.first) },
-                { -it.second }
-            ))
+        class CandidateScore(val word: String, val totalPenalty: Double, val lengthNormDist: Double, val spatialPenaltyValue: Double, val freq: Int)
+        
+        val scoredCandidates = candidates.map { (word, freq) ->
+            val lengthNormDist = editDistance(lowerTyped, word).toDouble() / word.length
+            val spatialPenaltyValue = spatialPenalty(lowerTyped, word)
+            val safeFreq = maxOf(1, freq).toDouble()
+            val totalPenalty = (lengthNormDist + spatialPenaltyValue) - (alpha * kotlin.math.ln(safeFreq))
+            CandidateScore(word, totalPenalty, lengthNormDist, spatialPenaltyValue, freq)
+        }.sortedBy { it.totalPenalty }
+
+        scoredCandidates.take(5).forEach {
+            if (!isIncognito) {
+                TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "CANDIDATE_SCORE | word=${it.word} | total=${it.totalPenalty} | length_norm_dist=${it.lengthNormDist} | spatial=${it.spatialPenaltyValue} | freq=${it.freq}")
+            }
+        }
+
+        val results = scoredCandidates
             .take(limit)
-            .map { it.first }
+            .map { it.word }
             .toMutableList()
             
         var usedFallback = false
