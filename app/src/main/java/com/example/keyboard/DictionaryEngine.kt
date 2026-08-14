@@ -526,9 +526,16 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
         
         // 2. Fetch standard engine suggestions
         val engineWords = getPrefixSuggestions(lowerPrefix, limit)
+        val boostedWords = if (prevWord != null && bigrams.containsKey(prevWord)) {
+            val contextMatches = bigrams[prevWord]?.keys ?: emptySet()
+            val (boosted, rest) = engineWords.partition { it in contextMatches }
+            boosted + rest
+        } else {
+            engineWords
+        }
         
         // Combine, prioritize personal, ensure unique
-        for (word in personalWords + engineWords) {
+        for (word in personalWords + boostedWords) {
             if (seen.add(word)) {
                 results.add(word)
                 if (results.size >= limit) return results

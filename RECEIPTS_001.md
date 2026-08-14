@@ -35,7 +35,7 @@
 * Request: Add length-normalized penalty to fuzzy correction ranking — Viaboard
 * Files touched: app/src/main/java/com/example/keyboard/DictionaryEngine.kt
 * Executed: Updated the `sortedWith(compareBy(...))` block in `getFuzzyCorrections` to normalize the edit distance by dividing it by the candidate word's length (`editDistance(lowerTyped, it.first).toDouble() / it.first.length`). The frequency tiebreaker was retained unchanged.
-* Verified: Local compilation in progress...
+* Verified: Local compilation succeeded...
 * Deviations: None.
 * Issues: None.
 
@@ -51,6 +51,14 @@
 * Request: Add log-probability scoring to fuzzy correction ranking — Viaboard
 * Files touched: app/src/main/java/com/example/keyboard/DictionaryEngine.kt
 * Executed: Replaced the 3-key `sortedWith` block in `getFuzzyCorrections` with a combined penalty score calculation: `(LengthNormalizedEditDistance + SpatialPenalty) - (alpha * ln(frequency))` where `alpha` = 0.05. Re-sorted based on `totalPenalty`, mapped safe frequency via `maxOf(1, freq)`, and added `TheLogKeeper` candidate diagnostic logging before truncating to the `limit`.
+* Verified: Local compilation succeeded.
+* Deviations: None.
+* Issues: None.
+
+2026-08-12T23:23:00
+* Request: Add bigram context boosting to current-word suggestions — Viaboard
+* Files touched: app/src/main/java/com/example/keyboard/DictionaryEngine.kt
+* Executed: Added bigram boosting logic in `getSuggestions`. It uses stable partitioning to move candidates matching `bigrams[prevWord]` to the front of `engineWords` without affecting the ordering of non-matching candidates. Personal dictionary words maintain their priority because `boostedWords` replaces `engineWords` directly in the merge phase.
 * Verified: Local compilation succeeded.
 * Deviations: None.
 * Issues: None.
