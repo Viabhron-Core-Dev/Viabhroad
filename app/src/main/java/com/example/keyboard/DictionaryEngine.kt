@@ -126,7 +126,10 @@ class DictionaryEngine(private val context: Context, autoLoad: Boolean = true) {
 
     private fun loadCacheFromDisk(expectedSourceFileName: String, expectedSourceFileSize: Long): Boolean {
         val cacheFile = getCacheFile()
-        if (!cacheFile.exists()) return false
+        if (!cacheFile.exists()) {
+            TheLogKeeper.getInstance(context).log("INFO", "DictionaryEngine", "CACHE_MISS | reason=file_not_found")
+            return false
+        }
         val startTime = System.currentTimeMillis()
         return try {
             java.io.DataInputStream(java.io.BufferedInputStream(cacheFile.inputStream())).use { input ->
