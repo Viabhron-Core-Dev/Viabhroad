@@ -914,6 +914,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
         if (topPrefix != null && topPrefix.lowercase() != typed.lowercase()) {
             val dist = dictionaryEngine.editDistance(typed.lowercase(), topPrefix.lowercase())
             if (dist == 1 && !isProperNoun && aggressiveness > 0.7f) {
+                if (typed.length <= 2 || (topPrefix.startsWith(typed.lowercase()) && topPrefix.length > typed.length)) {
+                    return AutocorrectDecision.Suggest(listOf(topPrefix), "prefix")
+                }
                 return AutocorrectDecision.Correct(topPrefix, dist, "prefix")
             }
             if (dist in 1..2) {
@@ -927,6 +930,9 @@ class ViaboardService : InputMethodService(), KeyboardView.KeyboardListener, Des
             val top = fuzzy[0]
             val dist = dictionaryEngine.editDistance(typed.lowercase(), top.lowercase())
             if (dist == 1 && !isProperNoun && aggressiveness > 0.7f) {
+                if (typed.length <= 2) {
+                    return AutocorrectDecision.Suggest(fuzzy, "fuzzy")
+                }
                 return AutocorrectDecision.Correct(top, dist, "fuzzy")
             }
             return AutocorrectDecision.Suggest(fuzzy, "fuzzy")
